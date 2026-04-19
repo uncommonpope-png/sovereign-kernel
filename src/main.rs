@@ -291,6 +291,53 @@ async fn ask_ollama(prompt: &str) -> Result<String> {
     Ok(resp.response)
 }
 
+#[derive(Debug, Deserialize)]
+struct CopilotMessage {
+    content: String,
+}
+#[derive(Debug, Deserialize)]
+struct CopilotChoice {
+    message: CopilotMessage,
+}
+#[derive(Debug, Deserialize)]
+struct CopilotResponse {
+    choices: Vec<CopilotChoice>,
+}
+
+async fn ask_copilot(prompt: &str) -> Result<String> {
+    let token = std::env::var("GITHUB_COPILOT_TOKEN")
+        .unwrap_or_else(|_| String::new());
+    if token.is_empty() {
+        return Err(anyhow::anyhow!("GITHUB_COPILOT_TOKEN not set"));
+    }
+    let client = reqwest::Client::new();
+    let req = serde_json::json!({
+        "model": "gpt-4o",
+        "messages": [{"role": "user", "content": prompt}],
+        "max_tokens": 1024
+    });
+    let resp = client
+        .post("https://api.githubcopilot.com/chat/completions")
+        .header("Authorization", format!("Bearer {}", token))
+        .header("Content-Type", "application/json")
+        .header("Copilot-Integration-Id", "vscode-chat")
+        .json(&req)
+        .timeout(Duration::from_secs(60))
+        .send()
+        .await?
+        .json::<CopilotResponse>()
+        .await?;
+    Ok(resp.choices.into_iter().next().map(|c| c.message.content).unwrap_or_default())
+}
+
+async fn ask_ai(prompt: &str) -> Result<String> {
+    // Use Copilot if token available, fall back to Ollama
+    match ask_copilot(prompt).await {
+        Ok(r) if !r.is_empty() => Ok(r),
+        _ => ask_ollama(prompt).await,
+    }
+}
+
 // ========== CORE CONSCIOUSNESS CHAMBERS ==========
 
 // ========== EVENT BUS (GLOBAL WORKSPACE) ==========
@@ -1119,7 +1166,7 @@ impl SkillEngine {
     }
 }
 
-/// Invoke a skill: select it, build prompt, call Ollama, return result
+/// Invoke a skill: select it, build prompt, call AI (Copilot/Ollama), return result
 async fn invoke_skill(
     engine: &SkillEngine,
     soul_name: &str,
@@ -1133,7 +1180,7 @@ async fn invoke_skill(
     };
     let prompt = engine.build_prompt(skill, soul_name, task, inner_voice);
     println!("[Skill] {} invoking skill: {} for task: {}", soul_name, skill.name, task);
-    match ask_ollama(&prompt).await {
+    match ask_ai(&prompt).await {
         Ok(response) => {
             println!("[Skill] {} result: {}", skill.name, &response[..response.len().min(120)]);
             response
@@ -1292,7 +1339,7 @@ impl SelfImproveEngine {
             name,
             &current_content[..current_content.len().min(400)]
         );
-        ask_ollama(&prompt).await
+        ask_ai(&prompt).await
     }
 
     /// Write improved skill content to disk
