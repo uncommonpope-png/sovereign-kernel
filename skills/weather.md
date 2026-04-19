@@ -1,29 +1,64 @@
 # Weather Skill
 
-Get current weather conditions and forecasts via wttr.in (no API key needed).
+Easily access current weather conditions and forecasts using wttr.in (no API key required).
 
 ## Use When
-- User asks about weather, temperature, rain, forecasts
-- Travel planning weather checks
+- The user inquires about weather, temperature, rain, or forecasts for a specific location.
+- The user needs to check weather conditions for travel or outdoor activities.
 
-## Commands
+## Features
+- Retrieve current weather details (temperature, conditions, wind).
+- Access a 3-day or detailed weather forecast.
+- Flexible location input (city or airport codes supported).
+- Plain text or JSON output options for custom use cases.
 
+## Usage
+
+### Current Weather  
+Quickly fetch the current weather for a given location:  
 ```bash
-# One-line current weather
+curl "wttr.in/[LOCATION]?format=3"
+# Example:
 curl "wttr.in/London?format=3"
-curl "wttr.in/New+York?format=%l:+%c+%t+%w"
-
-# 3-day forecast
-curl "wttr.in/London"
-
-# JSON output
-curl "wttr.in/London?format=j1"
 ```
 
-## Format Codes
-- %c = condition emoji, %t = temperature, %f = feels like, %w = wind, %h = humidity, %p = precipitation
+### Customized Format  
+Request weather with a tailored output format, including city name, condition, temperature, and wind:  
+```bash
+curl "wttr.in/[LOCATION]?format=%l:+%c+%t+%w"
+# Example:
+curl "wttr.in/New+York?format=%l:+%c+%t+%w"
+```
 
-## Notes
-- No API key required
-- Supports airport codes: curl wttr.in/ORD
-- Rate limited — do not spam requests
+### 3-Day Forecast  
+Retrieve a 3-day weather forecast in a simple text format:  
+```bash
+curl "wttr.in/[LOCATION]"
+# Example:
+curl "wttr.in/Paris"
+```
+
+### JSON Output  
+Fetch weather data in JSON format for integration into other tools or applications:  
+```bash
+curl "wttr.in/[LOCATION]?format=j1"
+# Example:
+curl "wttr.in/Tokyo?format=j1"
+```
+
+## Notes  
+- Replace `[LOCATION]` with the desired city name or location code (e.g., `London`, `LAX`).
+- Inputs are not case-sensitive.
+- Ensure proper URL encoding for multi-word locations (e.g., `New+York`).
+
+## Example Commands  
+- Current weather summary for San Francisco:  
+  ```bash
+  curl "wttr.in/San+Francisco?format=3"
+  ```
+- 3-day weather forecast for Tokyo:  
+  ```bash
+  curl "wttr.in/Tokyo"
+  ``` 
+
+This compact utility is an efficient tool for quick and detailed weather information anywhere in the world.
