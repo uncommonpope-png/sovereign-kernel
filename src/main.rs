@@ -1466,10 +1466,19 @@ async fn journal_task(soul_state: Arc<Mutex<SoulState>>, running: Arc<AtomicBool
 }
 
 async fn journal_server_task(running: Arc<AtomicBool>) {
-    let listener = match TcpListener::bind("0.0.0.0:7777").await {
-        Ok(l) => { println!("[Journal] Viewer running at http://localhost:7777"); l }
-        Err(e) => { eprintln!("[Journal] Could not start viewer: {}", e); return; }
+    // Try 7777 first, fall back to 7778 if already in use
+    let (listener, port) = if let Ok(l) = TcpListener::bind("0.0.0.0:7777").await {
+        println!("[Journal] Viewer running at http://localhost:7777");
+        (l, 7777u16)
+    } else if let Ok(l) = TcpListener::bind("0.0.0.0:7778").await {
+        println!("[Journal] Port 7777 in use — Viewer running at http://localhost:7778");
+        println!("[Journal] *** OPEN: http://localhost:7778 ***");
+        (l, 7778u16)
+    } else {
+        eprintln!("[Journal] Could not bind to port 7777 or 7778");
+        return;
     };
+    let _ = port; // used in log above
 
     while running.load(Ordering::Relaxed) {
         if let Ok((mut socket, _)) = listener.accept().await {
