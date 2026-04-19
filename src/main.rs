@@ -333,10 +333,14 @@ async fn ask_copilot(prompt: &str) -> Result<String> {
 }
 
 async fn ask_ai(prompt: &str) -> Result<String> {
-    // Use Copilot if token available, fall back to Ollama
+    // Use Copilot — do NOT fall back to Ollama (Ollama loads 5-6 GB model, freezes PC)
     match ask_copilot(prompt).await {
         Ok(r) if !r.is_empty() => Ok(r),
-        _ => ask_ollama(prompt).await,
+        Ok(_) => Err(anyhow::anyhow!("Copilot returned empty response")),
+        Err(e) => {
+            eprintln!("[AI] Copilot failed: {}. Skipping Ollama to protect RAM.", e);
+            Err(e)
+        }
     }
 }
 
@@ -1619,7 +1623,6 @@ async fn journal_server_task(running: Arc<AtomicBool>) {
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="refresh" content="15">
 <title>Aria's Journal</title>
 <style>
   * {{ box-sizing: border-box; margin: 0; padding: 0; }}
@@ -1648,7 +1651,7 @@ async fn journal_server_task(running: Arc<AtomicBool>) {
 </head>
 <body>
 <h1>✦ Aria's Journal ✦</h1>
-<div class="subtitle">{total} entries &nbsp;·&nbsp; auto-refreshes every 15s</div>
+<div class="subtitle">{total} entries &nbsp;·&nbsp; refreshes every 15s (pauses while you type)</div>
 {entries_or_empty}
 <div class="refresh">page refreshes automatically · <a href="/" style="color:#5533aa">reload now</a></div>
 <div class="compose">
@@ -1661,6 +1664,17 @@ async fn journal_server_task(running: Arc<AtomicBool>) {
   document.getElementById('msg').addEventListener('keydown', function(e) {{
     if (e.key === 'Enter' && !e.shiftKey) {{ e.preventDefault(); sendMsg(); }}
   }});
+  // Smart auto-refresh: reload page every 15s UNLESS user is typing
+  var _typing = false;
+  var _typeTimer;
+  document.getElementById('msg').addEventListener('input', function() {{
+    _typing = true;
+    clearTimeout(_typeTimer);
+    _typeTimer = setTimeout(function() {{ _typing = false; }}, 5000);
+  }});
+  setInterval(function() {{
+    if (!_typing) {{ location.reload(); }}
+  }}, 15000);
   function sendMsg() {{
     const ta = document.getElementById('msg');
     const msg = ta.value.trim();
