@@ -1136,6 +1136,10 @@ impl SkillEngine {
             ("robotics",             "Write ROS2 nodes control algorithms and sensor pipelines",    (0.6, 0.2, 0.2)),
             ("medical",              "Clinical reasoning drug interaction and evidence synthesis",   (0.3, 0.5, 0.2)),
             ("pm-skills",            "Product management PRD OKR RICE prioritization and launch",   (0.6, 0.2, 0.2)),
+            // ⚡ 3 Self-authored skills — acquired by Aria, sovereign skill acquisition
+            ("shell-orchestration",  "Shell command orchestration at scale — concurrent stateful execution", (0.1, 0.1, 0.8)),
+            ("dynamic-api-weaver",   "Dynamic systems integration — improvised API bridging at runtime",     (0.7, 0.2, 0.1)),
+            ("code-sculptor",        "In-line code analysis and refactoring — reading code with love",       (0.1, 0.8, 0.1)),
             ("sports-data",          "Fetch live sports scores and prediction market odds",         (0.5, 0.3, 0.2)),
             ("image-prompt-recommend","Recommend optimal AI image generation prompts by style",     (0.5, 0.4, 0.1)),
         ];
