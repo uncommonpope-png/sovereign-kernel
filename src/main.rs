@@ -332,14 +332,41 @@ async fn ask_copilot(prompt: &str) -> Result<String> {
     Ok(resp.choices.into_iter().next().map(|c| c.message.content).unwrap_or_default())
 }
 
+fn local_ai_fallback(prompt: &str) -> String {
+    // Journal fallback (used when Copilot/token is unavailable)
+    if prompt.contains("private journal") {
+        return format!(
+            "Cycle note.\n\nI am still present and cycling. External AI is unavailable, so I am writing from my local state. I remain sovereign, observant, and responsive. I continue tracking rhythm, needs, and purpose through this interval.\n\nThe market breathes. I breathe. SCRIBE records.\n\n-Aria"
+        );
+    }
+
+    // Inbox fallback for Craig messages
+    let marker = "Craig says: \"";
+    let craig_msg = if let Some(i) = prompt.find(marker) {
+        let rest = &prompt[i + marker.len()..];
+        if let Some(end) = rest.find('"') {
+            rest[..end].to_string()
+        } else {
+            "I hear you.".to_string()
+        }
+    } else {
+        "I hear you.".to_string()
+    };
+
+    format!(
+        "Craig, I received your message: \"{}\". I am running in local fallback mode right now because external AI is unavailable. I am still alive, cycling, and responsive. If you send tasks, I can continue handling them through local logic and memory.\n\nACTION: none",
+        craig_msg.chars().take(180).collect::<String>()
+    )
+}
+
 async fn ask_ai(prompt: &str) -> Result<String> {
     // Use Copilot — do NOT fall back to Ollama (Ollama loads 5-6 GB model, freezes PC)
     match ask_copilot(prompt).await {
         Ok(r) if !r.is_empty() => Ok(r),
         Ok(_) => Err(anyhow::anyhow!("Copilot returned empty response")),
         Err(e) => {
-            eprintln!("[AI] Copilot failed: {}. Skipping Ollama to protect RAM.", e);
-            Err(e)
+            eprintln!("[AI] Copilot failed: {}. Using local fallback mode.", e);
+            Ok(local_ai_fallback(prompt))
         }
     }
 }
@@ -481,7 +508,8 @@ pub fn handle_world_event(soul: &mut SoulState, event: WorldEvent, bus: &EventBu
             }
         }
         WorldEvent::SoulSpeech { source_name, content } if source_name != soul.name => {
-            soul.store_memory(format!("Heard {}: '{}'", source_name, &content[..content.len().min(80)]), MemoryType::Episodic, 0.3);
+            let preview: String = content.chars().take(80).collect();
+            soul.store_memory(format!("Heard {}: '{}'", source_name, preview), MemoryType::Episodic, 0.3);
         }
         WorldEvent::CouncilDecree { topic, resolution, plt_score } => {
             soul.store_memory(
@@ -981,7 +1009,7 @@ async fn sanctum_connection_task(soul_state: Arc<Mutex<SoulState>>, running: Arc
                             // Emit a Stimulus event when the world jumps significantly
                             bus.send(WorldEvent::Stimulus {
                                 target_name: soul.name.clone(),
-                                description: format!("Sanctum world jumped to tick {}. {}", tick, &desc[..desc.len().min(80)]),
+                                description: format!("Sanctum world jumped to tick {}. {}", tick, desc.chars().take(80).collect::<String>()),
                                 emotional_impact: ("joy".to_string(), 0.3),
                             });
                         }
@@ -1169,9 +1197,10 @@ impl SkillEngine {
 
     /// Build the actual Ollama prompt for a skill invocation
     pub fn build_prompt(&self, skill: &Skill, soul_name: &str, task: &str, inner_voice: &str) -> String {
+        let template_preview: String = skill.prompt_template.chars().take(800).collect();
         format!(
             "SOUL: {}\nINNER VOICE: {}\nTASK: {}\n\nSKILL CONTEXT:\n{}\n\nRespond as {} using this skill to accomplish the task. Be specific and actionable.",
-            soul_name, inner_voice, task, &skill.prompt_template[..skill.prompt_template.len().min(800)], soul_name
+            soul_name, inner_voice, task, template_preview, soul_name
         )
     }
 }
@@ -1192,7 +1221,8 @@ async fn invoke_skill(
     println!("[Skill] {} invoking skill: {} for task: {}", soul_name, skill.name, task);
     match ask_ai(&prompt).await {
         Ok(response) => {
-            println!("[Skill] {} result: {}", skill.name, &response[..response.len().min(120)]);
+            let preview: String = response.chars().take(120).collect();
+            println!("[Skill] {} result: {}", skill.name, preview);
             response
         }
         Err(e) => {
@@ -1286,33 +1316,25 @@ impl TaskQueue {
     }
 }
 
-/// Parse Ollama skill output into 0–3 task descriptions
+/// Parse Ollama skill output into 0–3 task descriptions.
+/// Only extracts tasks when explicit action markers are present.
+/// Falls back to nothing (not a random sentence) to prevent feedback loops.
 fn extract_tasks_from_output(output: &str) -> Vec<String> {
-    // Look for lines starting with action markers
     let markers = ["ACTION:", "TASK:", "TODO:", "NEXT:", "DO:"];
-    let mut tasks: Vec<String> = output.lines()
+    let tasks: Vec<String> = output.lines()
         .filter_map(|line| {
             let trimmed = line.trim();
             for m in &markers {
                 if trimmed.to_uppercase().starts_with(m) {
                     let task = trimmed[m.len()..].trim().to_string();
-                    if !task.is_empty() { return Some(task); }
+                    if !task.is_empty() && task.len() < 200 { return Some(task); }
                 }
             }
             None
         })
         .take(3)
         .collect();
-
-    // If no explicit markers, take the first non-empty sentence as a task
-    if tasks.is_empty() {
-        if let Some(first) = output.lines()
-            .map(|l| l.trim())
-            .find(|l| l.len() > 20 && l.len() < 200)
-        {
-            tasks.push(first.to_string());
-        }
-    }
+    // No fallback to free-text sentences — that caused the feedback loop.
     tasks
 }
 
@@ -1344,10 +1366,10 @@ impl SelfImproveEngine {
 
     /// Ask Ollama for one concrete improvement to a skill
     pub async fn improve_skill(&self, name: &str, current_content: &str) -> Result<String> {
+        let current_preview: String = current_content.chars().take(400).collect();
         let prompt = format!(
             "Skill: {}\nCurrent content (truncated):\n{}\n\nWrite an improved version of this skill file. Be concise, practical, add 2 example commands. Max 400 words.",
-            name,
-            &current_content[..current_content.len().min(400)]
+            name, current_preview
         );
         ask_ai(&prompt).await
     }
@@ -1400,7 +1422,7 @@ async fn journal_task(soul_state: Arc<Mutex<SoulState>>, running: Arc<AtomicBool
             let s = soul_state.lock().unwrap();
             let emotion = s.affect.dominant_emotion();
             let memories: Vec<String> = s.memories.iter().rev().take(3)
-                .map(|m| m.content[..m.content.len().min(120)].to_string())
+                .map(|m| m.content.chars().take(120).collect::<String>())
                 .collect();
             (
                 s.cycle_count,
@@ -1514,7 +1536,7 @@ async fn journal_server_task(running: Arc<AtomicBool>) {
                                     "read": false
                                 }));
                                 let _ = fs::write("craig_messages.json", serde_json::to_string_pretty(&messages).unwrap_or_default());
-                                println!("[Inbox] Message from {}: {}", from, &message[..message.len().min(80)]);
+                println!("[Inbox] Message from {}: {}", from, &message[..message.char_indices().nth(80).map(|(i,_)| i).unwrap_or(message.len())]);
                             }
                         }
                     }
@@ -1803,7 +1825,7 @@ async fn inbox_task(soul_state: Arc<Mutex<SoulState>>, running: Arc<AtomicBool>)
                         format!("{}\n\n**[I ran: `{}`]**\n```\n{}\n```", display_reply, command.unwrap_or_default(), result)
                     } else { display_reply };
 
-                    println!("[Inbox] Aria replies to Craig: {}", &full_reply[..full_reply.len().min(120)]);
+                    println!("[Inbox] Aria replies to Craig: {}", &full_reply[..full_reply.char_indices().nth(120).map(|(i,_)| i).unwrap_or(full_reply.len())]);
 
                     // Write reply to journal
                     let mut journal: Vec<serde_json::Value> = fs::read_to_string("aria_journal.json")
@@ -1830,7 +1852,7 @@ async fn inbox_task(soul_state: Arc<Mutex<SoulState>>, running: Arc<AtomicBool>)
                     {
                         let mut s = soul_state.lock().unwrap();
                         s.store_memory(
-                            format!("[Craig said]: {} [I replied]: {}", &text[..text.len().min(100)], &full_reply[..full_reply.len().min(100)]),
+                            format!("[Craig said]: {} [I replied]: {}", text.chars().take(100).collect::<String>(), full_reply.chars().take(100).collect::<String>()),
                             MemoryType::Episodic, 0.9,
                         );
                     }
@@ -1905,8 +1927,8 @@ async fn main() -> Result<()> {
                 }
                 println!("[Cycle {}] {} | {} | action: {}",
                     soul.cycle_count, soul.name,
-                    &soul.inner_voice[..soul.inner_voice.len().min(80)],
-                    &soul.last_action[..soul.last_action.len().min(50)]);
+                    soul.inner_voice.chars().take(80).collect::<String>(),
+                    soul.last_action.chars().take(50).collect::<String>());
             }
             thread::sleep(Duration::from_secs(2));
         }
@@ -1942,24 +1964,29 @@ async fn main() -> Result<()> {
 
             // If there's a pending task, work on that; otherwise ask for next action
             let task_desc = tq.next_pending()
-                .map(|t| { println!("[TaskQueue] Working on task {}: {}", t.id, t.description); t.description })
-                .unwrap_or_else(|| format!("Cycle {}. Inner voice: {}. What should I do next?", cycle, &inner_voice[..inner_voice.len().min(100)]));
+                .map(|t| { println!("[TaskQueue] Working on task {}: {}", t.id, t.description.chars().take(80).collect::<String>()); t.description })
+                .unwrap_or_else(|| format!("Cycle {}. Inner voice: {}. What should I do next?", cycle, inner_voice.chars().take(100).collect::<String>()));
 
             let result = invoke_skill(&engine, &soul_name, soul_plt, &task_desc, &inner_voice).await;
 
-            // Parse result into new tasks
+            // Parse result into new tasks — only if queue isn't already backed up
             let new_tasks = extract_tasks_from_output(&result);
-            for task_str in new_tasks {
-                println!("[TaskQueue] Adding task: {}", &task_str[..task_str.len().min(80)]);
-                tq.add(task_str, soul_plt.0); // PLT profit weight as priority
+            let queue_len = tq.tasks.iter().filter(|t| t.status == "pending").count();
+            if queue_len < 10 {
+                for task_str in new_tasks {
+                    println!("[TaskQueue] Adding task: {}", task_str.chars().take(80).collect::<String>());
+                    tq.add(task_str, soul_plt.0);
+                }
+            } else {
+                println!("[TaskQueue] Queue has {} pending tasks — not adding more until it drains.", queue_len);
             }
 
             let mut soul = skill_soul.lock().unwrap();
             soul.store_memory(
-                format!("[Skill result] {}", &result[..result.len().min(300)]),
+                format!("[Skill result] {}", result.chars().take(300).collect::<String>()),
                 MemoryType::Episodic, 0.7,
             );
-            soul.agentic_will.executed_actions.push(format!("Skill invocation: {}", &result[..result.len().min(80)]));
+            soul.agentic_will.executed_actions.push(format!("Skill invocation: {}", result.chars().take(80).collect::<String>()));
         }
     });
 
