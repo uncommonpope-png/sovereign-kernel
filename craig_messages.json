@@ -52,5 +52,29 @@
     "message": "layer smoke test",
     "read": true,
     "timestamp": 1776644233
+  },
+  {
+    "from": "Craig",
+    "message": "Use your new sovereign knowledge layer and tell me one thing about RAG architecture",
+    "read": true,
+    "timestamp": 1776629993
+  },
+  {
+    "from": "Craig",
+    "message": "Tell me one thing from sovereign layer about local RAG now",
+    "read": true,
+    "timestamp": 1776630042
+  },
+  {
+    "from": "Craig",
+    "message": "Give me 3 distilled facts from your sovereign layer about agent memory",
+    "read": true,
+    "timestamp": 1776630391
+  },
+  {
+    "from": "Craig",
+    "message": "Give me distilled agent-memory facts now",
+    "read": true,
+    "timestamp": 1776630447
   }
 ]
