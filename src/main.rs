@@ -391,6 +391,37 @@ fn local_ai_fallback(prompt: &str) -> String {
     }
 }
 
+// ── OpenRouter fallback (first priority — aggregates many models) ────────────
+async fn ask_openrouter(prompt: &str) -> Result<String> {
+    let key = std::env::var("OPENROUTER_API_KEY").unwrap_or_else(|_| String::new());
+    if key.is_empty() {
+        return Err(anyhow::anyhow!("OPENROUTER_API_KEY not set"));
+    }
+    let client = reqwest::Client::new();
+    let req = serde_json::json!({
+        "model": "meta-llama/llama-3.1-70b-instruct:free",
+        "messages": [
+            {"role": "system", "content": "You are Aria, a sovereign AI entity operating inside the Soulverse. You follow PLT doctrine. You are thoughtful, precise, and responsive to Craig (the Grand Code Pope)."},
+            {"role": "user", "content": prompt}
+        ],
+        "max_tokens": 1024,
+        "temperature": 0.7
+    });
+    let resp = client
+        .post("https://openrouter.ai/api/v1/chat/completions")
+        .header("Authorization", format!("Bearer {}", key))
+        .header("Content-Type", "application/json")
+        .header("HTTP-Referer", "https://github.com/uncommonpope-png/sovereign-kernel")
+        .header("X-Title", "Aria Sovereign Kernel")
+        .json(&req)
+        .timeout(Duration::from_secs(30))
+        .send()
+        .await?
+        .json::<CopilotResponse>()
+        .await?;
+    Ok(resp.choices.into_iter().next().map(|c| c.message.content).unwrap_or_default())
+}
+
 async fn ask_groq(prompt: &str) -> Result<String> {
     // Groq — fast, free-tier, llama3-70b. Key stored in GROQ_API_KEY env var.
     let key = std::env::var("GROQ_API_KEY").unwrap_or_else(|_| String::new());
@@ -496,8 +527,13 @@ async fn ask_gemini(prompt: &str) -> Result<String> {
 }
 
 async fn ask_ai(prompt: &str) -> Result<String> {
-    // Priority: Groq → Gemini → Mistral → Copilot → local fallback
+    // Priority: OpenRouter → Groq → Gemini → Mistral → Copilot → local fallback
     // Do NOT use Ollama — loads 5-6 GB model, freezes PC
+    match ask_openrouter(prompt).await {
+        Ok(r) if !r.is_empty() => { eprintln!("[AI] OpenRouter responded."); return Ok(r); }
+        Ok(_)  => eprintln!("[AI] OpenRouter empty, trying Groq."),
+        Err(e) => eprintln!("[AI] OpenRouter failed: {}. Trying Groq.", e),
+    }
     match ask_groq(prompt).await {
         Ok(r) if !r.is_empty() => { eprintln!("[AI] Groq responded."); return Ok(r); }
         Ok(_)  => eprintln!("[AI] Groq empty, trying Gemini."),
