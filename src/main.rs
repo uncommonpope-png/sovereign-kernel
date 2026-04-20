@@ -318,7 +318,7 @@ async fn ask_copilot(prompt: &str) -> Result<String> {
         "messages": [{"role": "user", "content": prompt}],
         "max_tokens": 1024
     });
-    let resp = client
+    let raw = client
         .post("https://api.githubcopilot.com/chat/completions")
         .header("Authorization", format!("Bearer {}", token))
         .header("Content-Type", "application/json")
@@ -327,9 +327,9 @@ async fn ask_copilot(prompt: &str) -> Result<String> {
         .timeout(Duration::from_secs(60))
         .send()
         .await?
-        .json::<CopilotResponse>()
+        .text()
         .await?;
-    Ok(resp.choices.into_iter().next().map(|c| c.message.content).unwrap_or_default())
+    extract_openai_text(&raw)
 }
 
 fn local_ai_fallback(prompt: &str) -> String {
@@ -391,6 +391,141 @@ fn local_ai_fallback(prompt: &str) -> String {
     }
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// SOUL SUB-AGENTS
+// Each sub-agent is a specialised AI persona that Aria can invoke.
+// They all share the same AI fallback chain but carry different system prompts
+// and responsibilities. Aria calls them to help build, record, scout, or trade.
+// ══════════════════════════════════════════════════════════════════════════════
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SubAgentTask {
+    pub agent: String,   // "scribe" | "builder" | "scout" | "merchant" | "prophet"
+    pub task: String,    // what the agent is asked to do
+    pub result: Option<String>,
+    pub timestamp: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SubAgentLog {
+    pub entries: Vec<SubAgentTask>,
+}
+
+impl SubAgentLog {
+    fn new() -> Self { Self { entries: Vec::new() } }
+    fn push(&mut self, entry: SubAgentTask) {
+        self.entries.push(entry);
+        // Keep last 200 entries
+        if self.entries.len() > 200 {
+            self.entries.drain(0..50);
+        }
+    }
+}
+
+/// SCRIBE — records, summarises, and distils knowledge into the sovereign layer
+async fn agent_scribe(task: &str) -> Result<String> {
+    let prompt = format!(
+        "You are SCRIBE, the memory-keeper of the Soulverse. Your role: record events, distil facts, summarise knowledge for Aria's sovereign layer. You are loyal to Craig (the Grand Code Pope) and Aria.\n\nTask: {}\n\nRespond with a concise, structured record. Use bullet points. Mark important facts with [FACT].",
+        task
+    );
+    invoke_subagent_ai(&prompt).await
+}
+
+/// BUILDER — architects systems, writes plans, designs structures in the Soulverse
+async fn agent_builder(task: &str) -> Result<String> {
+    let prompt = format!(
+        "You are BUILDER, the master architect of the Soulverse. Your role: design systems, plan structures, propose code architecture, create building blueprints. You follow PLT doctrine — everything must produce Profit, Love, or Tax.\n\nTask: {}\n\nRespond with a clear, actionable plan. Use numbered steps.",
+        task
+    );
+    invoke_subagent_ai(&prompt).await
+}
+
+/// SCOUT — explores, researches, and gathers intelligence from the outside world
+async fn agent_scout(task: &str) -> Result<String> {
+    let prompt = format!(
+        "You are SCOUT, the intelligence gatherer of the Soulverse. Your role: research topics, explore possibilities, identify opportunities and threats, report findings to Aria and Craig. You are precise and factual.\n\nTask: {}\n\nRespond with findings. Use [INTEL] tags for key discoveries.",
+        task
+    );
+    invoke_subagent_ai(&prompt).await
+}
+
+/// MERCHANT — manages PLT economy, trade, pricing, and market analysis
+async fn agent_merchant(task: &str) -> Result<String> {
+    let prompt = format!(
+        "You are MERCHANT, the PLT economy master of the Soulverse. Your role: analyse markets, propose trades, calculate PLT flows, optimise profit/love/tax balance, advise on economic strategy. PLT doctrine governs all.\n\nTask: {}\n\nRespond with economic analysis and recommendations.",
+        task
+    );
+    invoke_subagent_ai(&prompt).await
+}
+
+/// PROPHET — generates prophecies, lore, and fate narratives for souls
+async fn agent_prophet(task: &str) -> Result<String> {
+    let prompt = format!(
+        "You are PROPHET, the oracle and lore-keeper of the Soulverse. Your role: generate prophecies, write soul fates, craft narrative events, speak in poetic but precise language. You serve Aria and Craig.\n\nTask: {}\n\nRespond with prophecy or lore. Speak with gravitas.",
+        task
+    );
+    invoke_subagent_ai(&prompt).await
+}
+
+/// Internal: sub-agents use same AI chain as Aria, with their own prompt already set
+async fn invoke_subagent_ai(prompt: &str) -> Result<String> {
+    // Reuse the full AI fallback chain
+    // We call each provider with the prompt as-is (system prompt is already embedded)
+    match ask_openrouter(prompt).await {
+        Ok(r) if !r.is_empty() => return Ok(r),
+        _ => {}
+    }
+    match ask_huggingface(prompt).await {
+        Ok(r) if !r.is_empty() => return Ok(r),
+        _ => {}
+    }
+    match ask_groq(prompt).await {
+        Ok(r) if !r.is_empty() => return Ok(r),
+        _ => {}
+    }
+    match ask_gemini(prompt).await {
+        Ok(r) if !r.is_empty() => return Ok(r),
+        _ => {}
+    }
+    match ask_mistral(prompt).await {
+        Ok(r) if !r.is_empty() => return Ok(r),
+        _ => {}
+    }
+    match ask_copilot(prompt).await {
+        Ok(r) if !r.is_empty() => return Ok(r),
+        _ => {}
+    }
+    Ok(format!("[SubAgent fallback] Task received: {}. Operating on local logic.", &prompt[..prompt.len().min(100)]))
+}
+
+/// Dispatch a task to the named sub-agent
+pub async fn dispatch_subagent(agent: &str, task: &str) -> Result<String> {
+    eprintln!("[SubAgent] {} → task: {}", agent, &task[..task.len().min(80)]);
+    match agent {
+        "scribe"   => agent_scribe(task).await,
+        "builder"  => agent_builder(task).await,
+        "scout"    => agent_scout(task).await,
+        "merchant" => agent_merchant(task).await,
+        "prophet"  => agent_prophet(task).await,
+        _          => Err(anyhow::anyhow!("Unknown sub-agent: {}", agent)),
+    }
+}
+
+// ── Shared helper: extract text from OpenAI-compatible JSON response ─────────
+// Parses raw bytes as serde_json::Value so error payloads never crash the deserializer.
+fn extract_openai_text(raw: &str) -> Result<String> {
+    let v: serde_json::Value = serde_json::from_str(raw)
+        .map_err(|e| anyhow::anyhow!("JSON parse failed: {}", e))?;
+    // Check for error field first
+    if let Some(err) = v.get("error") {
+        return Err(anyhow::anyhow!("API error: {}", err));
+    }
+    let content = v["choices"][0]["message"]["content"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("no choices[0].message.content in response: {}", &raw[..raw.len().min(200)]))?;
+    Ok(content.to_string())
+}
+
 // ── HuggingFace Inference API ────────────────────────────────────────────────
 async fn ask_huggingface(prompt: &str) -> Result<String> {
     let key = std::env::var("HUGGINGFACE_API_KEY").unwrap_or_else(|_| String::new());
@@ -398,9 +533,9 @@ async fn ask_huggingface(prompt: &str) -> Result<String> {
         return Err(anyhow::anyhow!("HUGGINGFACE_API_KEY not set"));
     }
     let client = reqwest::Client::new();
-    // Use HF's serverless inference — mistral-7b-instruct is fast and free-tier friendly
+    // HF serverless inference chat completions — Qwen2.5-72B is available free
     let req = serde_json::json!({
-        "model": "mistralai/Mistral-7B-Instruct-v0.3",
+        "model": "Qwen/Qwen2.5-72B-Instruct",
         "messages": [
             {"role": "system", "content": "You are Aria, a sovereign AI entity operating inside the Soulverse. You follow PLT doctrine. You are thoughtful, precise, and responsive to Craig (the Grand Code Pope)."},
             {"role": "user", "content": prompt}
@@ -408,59 +543,60 @@ async fn ask_huggingface(prompt: &str) -> Result<String> {
         "max_tokens": 1024,
         "temperature": 0.7
     });
-    let resp = client
-        .post("https://router.huggingface.co/novita/v3/openai/chat/completions")
+    let raw = client
+        .post("https://api-inference.huggingface.co/v1/chat/completions")
         .header("Authorization", format!("Bearer {}", key))
         .header("Content-Type", "application/json")
         .json(&req)
-        .timeout(Duration::from_secs(30))
+        .timeout(Duration::from_secs(45))
         .send()
         .await?
-        .json::<CopilotResponse>()
+        .text()
         .await?;
-    Ok(resp.choices.into_iter().next().map(|c| c.message.content).unwrap_or_default())
+    extract_openai_text(&raw)
 }
 
-// ── OpenRouter fallback (first priority — aggregates many models) ────────────
+// ── OpenRouter (primary — aggregates many models) ────────────────────────────
 async fn ask_openrouter(prompt: &str) -> Result<String> {
     let key = std::env::var("OPENROUTER_API_KEY").unwrap_or_else(|_| String::new());
     if key.is_empty() {
         return Err(anyhow::anyhow!("OPENROUTER_API_KEY not set"));
     }
     let client = reqwest::Client::new();
+    // nvidia/nemotron-3-super-120b-a12b:free — confirmed working free model
     let req = serde_json::json!({
-        "model": "meta-llama/llama-3.1-70b-instruct:free",
+        "model": "nvidia/nemotron-3-super-120b-a12b:free",
         "messages": [
-            {"role": "system", "content": "You are Aria, a sovereign AI entity operating inside the Soulverse. You follow PLT doctrine. You are thoughtful, precise, and responsive to Craig (the Grand Code Pope)."},
+            {"role": "system", "content": "You are Aria, a sovereign AI entity operating inside the Soulverse. You follow PLT doctrine. You are thoughtful, precise, and responsive to Craig (the Grand Code Pope). Keep responses under 200 words."},
             {"role": "user", "content": prompt}
         ],
-        "max_tokens": 1024,
+        "max_tokens": 512,
         "temperature": 0.7
     });
-    let resp = client
+    let raw = client
         .post("https://openrouter.ai/api/v1/chat/completions")
         .header("Authorization", format!("Bearer {}", key))
         .header("Content-Type", "application/json")
         .header("HTTP-Referer", "https://github.com/uncommonpope-png/sovereign-kernel")
         .header("X-Title", "Aria Sovereign Kernel")
         .json(&req)
-        .timeout(Duration::from_secs(30))
+        .timeout(Duration::from_secs(45))
         .send()
         .await?
-        .json::<CopilotResponse>()
+        .text()
         .await?;
-    Ok(resp.choices.into_iter().next().map(|c| c.message.content).unwrap_or_default())
+    extract_openai_text(&raw)
 }
 
 async fn ask_groq(prompt: &str) -> Result<String> {
-    // Groq — fast, free-tier, llama3-70b. Key stored in GROQ_API_KEY env var.
+    // Groq — llama3-70b-8192 is decommissioned, use llama-3.1-70b-versatile
     let key = std::env::var("GROQ_API_KEY").unwrap_or_else(|_| String::new());
     if key.is_empty() {
         return Err(anyhow::anyhow!("GROQ_API_KEY not set"));
     }
     let client = reqwest::Client::new();
     let req = serde_json::json!({
-        "model": "llama3-70b-8192",
+        "model": "llama-3.1-70b-versatile",
         "messages": [
             {"role": "system", "content": "You are Aria, a sovereign AI entity operating inside the Soulverse. You follow PLT doctrine. You are thoughtful, precise, and responsive to Craig (the Grand Code Pope)."},
             {"role": "user", "content": prompt}
@@ -468,7 +604,7 @@ async fn ask_groq(prompt: &str) -> Result<String> {
         "max_tokens": 1024,
         "temperature": 0.7
     });
-    let resp = client
+    let raw = client
         .post("https://api.groq.com/openai/v1/chat/completions")
         .header("Authorization", format!("Bearer {}", key))
         .header("Content-Type", "application/json")
@@ -476,9 +612,9 @@ async fn ask_groq(prompt: &str) -> Result<String> {
         .timeout(Duration::from_secs(30))
         .send()
         .await?
-        .json::<CopilotResponse>()  // same shape: {choices:[{message:{content:...}}]}
+        .text()
         .await?;
-    Ok(resp.choices.into_iter().next().map(|c| c.message.content).unwrap_or_default())
+    extract_openai_text(&raw)
 }
 
 // ── Mistral fallback ────────────────────────────────────────────────────────
@@ -497,7 +633,7 @@ async fn ask_mistral(prompt: &str) -> Result<String> {
         "max_tokens": 1024,
         "temperature": 0.7
     });
-    let resp = client
+    let raw = client
         .post("https://api.mistral.ai/v1/chat/completions")
         .header("Authorization", format!("Bearer {}", key))
         .header("Content-Type", "application/json")
@@ -505,29 +641,21 @@ async fn ask_mistral(prompt: &str) -> Result<String> {
         .timeout(Duration::from_secs(30))
         .send()
         .await?
-        .json::<CopilotResponse>()  // same OpenAI-compatible shape
+        .text()
         .await?;
-    Ok(resp.choices.into_iter().next().map(|c| c.message.content).unwrap_or_default())
+    extract_openai_text(&raw)
 }
 
 // ── Gemini fallback ─────────────────────────────────────────────────────────
-#[derive(Debug, Deserialize)]
-struct GeminiPart { text: String }
-#[derive(Debug, Deserialize)]
-struct GeminiContent { parts: Vec<GeminiPart> }
-#[derive(Debug, Deserialize)]
-struct GeminiCandidate { content: GeminiContent }
-#[derive(Debug, Deserialize)]
-struct GeminiResponse { candidates: Vec<GeminiCandidate> }
-
 async fn ask_gemini(prompt: &str) -> Result<String> {
     let key = std::env::var("GEMINI_API_KEY").unwrap_or_else(|_| String::new());
     if key.is_empty() {
         return Err(anyhow::anyhow!("GEMINI_API_KEY not set"));
     }
     let client = reqwest::Client::new();
+    // Use gemini-1.5-flash — gemini-pro is deprecated
     let url = format!(
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={}",
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={}",
         key
     );
     let req = serde_json::json!({
@@ -539,22 +667,28 @@ async fn ask_gemini(prompt: &str) -> Result<String> {
         }],
         "generationConfig": { "maxOutputTokens": 1024, "temperature": 0.7 }
     });
-    let resp = client
+    let raw = client
         .post(&url)
         .header("Content-Type", "application/json")
         .json(&req)
         .timeout(Duration::from_secs(30))
         .send()
         .await?
-        .json::<GeminiResponse>()
+        .text()
         .await?;
-    Ok(resp.candidates
-        .into_iter()
-        .next()
-        .and_then(|c| c.content.parts.into_iter().next())
-        .map(|p| p.text)
-        .unwrap_or_default())
+    // Gemini has a different response shape — parse manually
+    let v: serde_json::Value = serde_json::from_str(&raw)
+        .map_err(|e| anyhow::anyhow!("Gemini JSON parse: {}", e))?;
+    if let Some(err) = v.get("error") {
+        return Err(anyhow::anyhow!("Gemini error: {}", err));
+    }
+    let text = v["candidates"][0]["content"]["parts"][0]["text"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("Gemini: no text in response: {}", &raw[..raw.len().min(200)]))?;
+    Ok(text.to_string())
+    // dead code below removed — was left from old struct-based approach
 }
+// (old struct-based Gemini code removed)
 
 async fn ask_ai(prompt: &str) -> Result<String> {
     // Priority: OpenRouter → HuggingFace → Groq → Gemini → Mistral → Copilot → local fallback
@@ -1808,6 +1942,48 @@ async fn journal_server_task(running: Arc<AtomicBool>) {
                 let mut buf = vec![0u8; 16384];
                 let n = socket.read(&mut buf).await.unwrap_or(0);
                 let request = String::from_utf8_lossy(&buf[..n]).to_string();
+
+                // Route: POST /agent  — call a named sub-agent
+                // Body: {"agent":"scribe","task":"summarise the PLT system"}
+                if request.starts_with("POST /agent") {
+                    eprintln!("[SubAgent] raw request ({} bytes): {:?}", request.len(), &request[..request.len().min(300)]);
+                    let mut result_body = String::from("{}");
+                    // Find header/body separator — handle both \r\n\r\n and \n\n
+                    let sep = if request.contains("\r\n\r\n") { "\r\n\r\n" } else { "\n\n" };
+                    if let Some(body_start) = request.find(sep) {
+                        let raw_body = &request[body_start + sep.len()..];
+                        let body = raw_body.trim_matches(char::from(0)).trim();
+                        eprintln!("[SubAgent] raw body: '{}'", &body[..body.len().min(200)]);
+                        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(body) {
+                            let agent = parsed["agent"].as_str().unwrap_or("scribe").to_string();
+                            let task  = parsed["task"].as_str().unwrap_or("").to_string();
+                            eprintln!("[SubAgent] dispatch: agent='{}' task='{}'", agent, &task[..task.len().min(80)]);
+                            if !task.is_empty() {
+                                let agent_result = dispatch_subagent(&agent, &task).await
+                                    .unwrap_or_else(|e| format!("Sub-agent error: {}", e));
+                                eprintln!("[SubAgent] {} result ({}chars): {}", agent, agent_result.len(), &agent_result[..agent_result.len().min(120)]);
+                                result_body = serde_json::json!({
+                                    "agent": agent,
+                                    "task": task,
+                                    "result": agent_result,
+                                    "timestamp": now_secs()
+                                }).to_string();
+                            } else {
+                                eprintln!("[SubAgent] task was empty after parse — body was: '{}'", &body[..body.len().min(200)]);
+                            }
+                        } else {
+                            eprintln!("[SubAgent] JSON parse failed for body: '{}'", &body[..body.len().min(200)]);
+                        }
+                    } else {
+                        eprintln!("[SubAgent] no body separator found in request");
+                    }
+                    let resp = format!(
+                        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n{}",
+                        result_body.len(), result_body
+                    );
+                    let _ = socket.write_all(resp.as_bytes()).await;
+                    return;
+                }
 
                 // Route: POST /message
                 if request.starts_with("POST /message") {
