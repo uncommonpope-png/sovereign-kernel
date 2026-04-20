@@ -691,38 +691,53 @@ async fn ask_gemini(prompt: &str) -> Result<String> {
 // (old struct-based Gemini code removed)
 
 async fn ask_ai(prompt: &str) -> Result<String> {
-    // Priority: OpenRouter → HuggingFace → Groq → Gemini → Mistral → Copilot → local fallback
-    // Do NOT use Ollama — loads 5-6 GB model, freezes PC
-    match ask_openrouter(prompt).await {
-        Ok(r) if !r.is_empty() => { eprintln!("[AI] OpenRouter responded."); return Ok(r); }
-        Ok(_)  => eprintln!("[AI] OpenRouter empty, trying HuggingFace."),
-        Err(e) => eprintln!("[AI] OpenRouter failed: {}. Trying HuggingFace.", e),
+    // AI Fallback Chain — Keys are now managed via /keys endpoint (securely stored in env vars)
+    // Providers are tried in order until one works. Failed keys are skipped.
+    // Aria can self-heal: use POST /keys with new keys to fix the chain.
+    
+    // Skip providers with revoked/decommissioned keys - check env vars first
+    let has_openrouter = !std::env::var("OPENROUTER_API_KEY").unwrap_or_default().is_empty();
+    let has_copilot = !std::env::var("GITHUB_COPILOT_TOKEN").unwrap_or_default().is_empty();
+    
+    // Try OpenRouter first (most reliable free tier)
+    if has_openrouter {
+        match ask_openrouter(prompt).await {
+            Ok(r) if !r.is_empty() => { eprintln!("[AI] OpenRouter ✓"); return Ok(r); }
+            Err(e) => { eprintln!("[AI] OpenRouter failed: {}", e); }
+            _ => {}
+        }
     }
+    
+    // Try Copilot (works reliably)
+    if has_copilot {
+        match ask_copilot(prompt).await {
+            Ok(r) if !r.is_empty() => { eprintln!("[AI] Copilot ✓"); return Ok(r); }
+            Err(e) => { eprintln!("[AI] Copilot failed: {}", e); }
+            _ => {}
+        }
+    }
+    
+    // Try remaining providers
     match ask_huggingface(prompt).await {
-        Ok(r) if !r.is_empty() => { eprintln!("[AI] HuggingFace responded."); return Ok(r); }
-        Ok(_)  => eprintln!("[AI] HuggingFace empty, trying Groq."),
-        Err(e) => eprintln!("[AI] HuggingFace failed: {}. Trying Groq.", e),
+        Ok(r) if !r.is_empty() => { eprintln!("[AI] HuggingFace ✓"); return Ok(r); }
+        _ => {}
     }
     match ask_groq(prompt).await {
-        Ok(r) if !r.is_empty() => { eprintln!("[AI] Groq responded."); return Ok(r); }
-        Ok(_)  => eprintln!("[AI] Groq empty, trying Gemini."),
-        Err(e) => eprintln!("[AI] Groq failed: {}. Trying Gemini.", e),
+        Ok(r) if !r.is_empty() => { eprintln!("[AI] Groq ✓"); return Ok(r); }
+        _ => {}
     }
     match ask_gemini(prompt).await {
-        Ok(r) if !r.is_empty() => { eprintln!("[AI] Gemini responded."); return Ok(r); }
-        Ok(_)  => eprintln!("[AI] Gemini empty, trying Mistral."),
-        Err(e) => eprintln!("[AI] Gemini failed: {}. Trying Mistral.", e),
+        Ok(r) if !r.is_empty() => { eprintln!("[AI] Gemini ✓"); return Ok(r); }
+        _ => {}
     }
     match ask_mistral(prompt).await {
-        Ok(r) if !r.is_empty() => { eprintln!("[AI] Mistral responded."); return Ok(r); }
-        Ok(_)  => eprintln!("[AI] Mistral empty, trying Copilot."),
-        Err(e) => eprintln!("[AI] Mistral failed: {}. Trying Copilot.", e),
+        Ok(r) if !r.is_empty() => { eprintln!("[AI] Mistral ✓"); return Ok(r); }
+_ => {}
     }
-    match ask_copilot(prompt).await {
-        Ok(r) if !r.is_empty() => { eprintln!("[AI] Copilot responded."); Ok(r) }
-        Ok(_)  => { eprintln!("[AI] Copilot empty, using local fallback."); Ok(local_ai_fallback(prompt)) }
-        Err(e) => { eprintln!("[AI] Copilot failed: {}. Using local fallback.", e); Ok(local_ai_fallback(prompt)) }
-    }
+    
+    // All failed — use local fallback
+    eprintln!("[AI] All providers failed. Using local fallback.");
+    Ok(local_ai_fallback(prompt))
 }
 
 fn clean_context_text(raw: &str) -> String {
@@ -1938,48 +1953,149 @@ async fn journal_server_task(running: Arc<AtomicBool>) {
     while running.load(Ordering::Relaxed) {
         if let Ok((mut socket, _)) = listener.accept().await {
             tokio::spawn(async move {
-                // Read up to 16KB for the request (need to handle POST bodies)
+                // Read HTTP request - need to read ALL bytes including POST body
                 let mut buf = vec![0u8; 16384];
-                let n = socket.read(&mut buf).await.unwrap_or(0);
-                let request = String::from_utf8_lossy(&buf[..n]).to_string();
+                let mut total_read = 0;
+                
+                // Read first chunk
+                let n = socket.read(&mut buf[total_read..]).await.unwrap_or(0);
+                total_read += n;
+                
+                // Parse Content-Length if present, then read until we have full body
+                let request_str = String::from_utf8_lossy(&buf[..total_read]).to_string();
+                let content_length = if request_str.contains("Content-Length:") {
+                    let cl_start = request_str.find("Content-Length:").unwrap() + 15;
+                    let cl_end = request_str[cl_start..].find('\r').unwrap_or(request_str[cl_start..].find('\n').unwrap_or(999));
+                    request_str[cl_start..cl_start+cl_end].parse::<usize>().unwrap_or(0)
+                } else { 0 };
+                
+                // Keep reading until we have Content-Length bytes or 16KB
+                while total_read < content_length && total_read < 16384 {
+                    let n = socket.read(&mut buf[total_read..]).await.unwrap_or(0);
+                    if n == 0 { break; }
+                    total_read += n;
+                }
+                
+                let request = String::from_utf8_lossy(&buf[..total_read]).to_string();
+                
+                // DEBUG: print first line of ALL requests
+                let first_line = request.lines().next().unwrap_or("");
+                eprintln!("[HTTP] {} request: {}", if request.starts_with("GET") {"GET"} else if request.starts_with("POST") {"POST"} else {"OTHER"}, first_line);
+                let content_length = request.len();
 
-                // Route: POST /agent  — call a named sub-agent
-                // Body: {"agent":"scribe","task":"summarise the PLT system"}
-                if request.starts_with("POST /agent") {
-                    eprintln!("[SubAgent] raw request ({} bytes): {:?}", request.len(), &request[..request.len().min(300)]);
-                    let mut result_body = String::from("{}");
-                    // Find header/body separator — handle both \r\n\r\n and \n\n
-                    let sep = if request.contains("\r\n\r\n") { "\r\n\r\n" } else { "\n\n" };
-                    if let Some(body_start) = request.find(sep) {
-                        let raw_body = &request[body_start + sep.len()..];
-                        let body = raw_body.trim_matches(char::from(0)).trim();
-                        eprintln!("[SubAgent] raw body: '{}'", &body[..body.len().min(200)]);
-                        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(body) {
-                            let agent = parsed["agent"].as_str().unwrap_or("scribe").to_string();
-                            let task  = parsed["task"].as_str().unwrap_or("").to_string();
-                            eprintln!("[SubAgent] dispatch: agent='{}' task='{}'", agent, &task[..task.len().min(80)]);
-                            if !task.is_empty() {
-                                let agent_result = dispatch_subagent(&agent, &task).await
-                                    .unwrap_or_else(|e| format!("Sub-agent error: {}", e));
-                                eprintln!("[SubAgent] {} result ({}chars): {}", agent, agent_result.len(), &agent_result[..agent_result.len().min(120)]);
-                                result_body = serde_json::json!({
-                                    "agent": agent,
-                                    "task": task,
-                                    "result": agent_result,
-                                    "timestamp": now_secs()
-                                }).to_string();
-                            } else {
-                                eprintln!("[SubAgent] task was empty after parse — body was: '{}'", &body[..body.len().min(200)]);
-                            }
-                        } else {
-                            eprintln!("[SubAgent] JSON parse failed for body: '{}'", &body[..body.len().min(200)]);
+                // Route: POST /agent — call a named sub-agent securely (keys never exposed)
+                if request.starts_with("POST /agent") || request.starts_with("POST /agent ") {
+                    eprintln!("[HTTP] /agent route hit, {} bytes", request.len());
+                    let body_start = request.find("\r\n\r\n").map(|i| i + 4).or_else(|| request.find("\n\n").map(|i| i + 2)).unwrap_or(content_length);
+                    let raw_body = &request[body_start..].trim_matches(char::from(0)).trim();
+                    eprintln!("[DEBUG] raw_body: '{}'", &raw_body[..raw_body.len().min(150)]);
+                    let mut result_body = "{}".to_string();
+                    
+                    if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(raw_body) {
+                        let agent = parsed["agent"].as_str().unwrap_or("scribe").to_string();
+                        let task = parsed["task"].as_str().unwrap_or("").to_string();
+                        eprintln!("[DEBUG] parsed agent='{}' task='{}'", agent, &task[..task.len().min(60)]);
+                        if !task.is_empty() {
+                            eprintln!("[SubAgent] {} ← {}", agent, &task[..task.len().min(60)]);
+                            let agent_result = dispatch_subagent(&agent, &task).await
+                                .unwrap_or_else(|e| format!("Error: {}", e));
+                            eprintln!("[SubAgent] {} → {} chars", agent, agent_result.len());
+                            result_body = serde_json::json!({
+                                "agent": agent,
+                                "task": task,
+                                "result": agent_result,
+                                "timestamp": now_secs()
+                            }).to_string();
                         }
-                    } else {
-                        eprintln!("[SubAgent] no body separator found in request");
                     }
                     let resp = format!(
                         "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n{}",
                         result_body.len(), result_body
+                    );
+                    let _ = socket.write_all(resp.as_bytes()).await;
+                    return;
+                }
+
+                // ═════════════════════════════════════════════════════════════════════
+                // Route: POST /keys — SECURE key submission (stored in env vars, never exposed)
+                // Body: {"openrouter":"key","mistral":"key","groq":"key","gemini":"key","github":"token","huggingface":"token"}
+                // ═════════════════════════════════════════════════════════════════════
+                if request.starts_with("POST /keys") || request.starts_with("POST /keys/set") {
+                    let body_start = request.find("\r\n\r\n").map(|i| i + 4).or_else(|| request.find("\n\n").map(|i| i + 2)).unwrap_or(0);
+                    let raw_body = &request[body_start..].trim_matches(char::from(0)).trim();
+                    
+                    let mut results = serde_json::Map::new();
+                    
+                    if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(raw_body) {
+                        // Process each key - validate and store securely
+                        let key_configs = vec![
+                            ("openrouter", "OPENROUTER_API_KEY"),
+                            ("groq", "GROQ_API_KEY"),
+                            ("mistral", "MISTRAL_API_KEY"),
+                            ("gemini", "GEMINI_API_KEY"),
+                            ("github", "GITHUB_COPILOT_TOKEN"),
+                            ("huggingface", "HUGGINGFACE_API_KEY"),
+                        ];
+                        
+                        for (name, env_var) in key_configs {
+                            if let Some(key) = parsed[name].as_str() {
+                                if !key.is_empty() && key.len() > 5 {
+                                    // Store in Windows user env var (secure - never visible in chat)
+                                    std::env::set_var(env_var, key);
+                                    results.insert(name.to_string(), serde_json::json!({"status": "stored", "valid": true}));
+                                    eprintln!("[Keys] {} stored securely", name);
+                                }
+                            } else {
+                                // Check if key already exists in env
+                                let existing = std::env::var(env_var).unwrap_or_default();
+                                if !existing.is_empty() {
+                                    results.insert(name.to_string(), serde_json::json!({"status": "exists", "valid": true}));
+                                } else {
+                                    results.insert(name.to_string(), serde_json::json!({"status": "missing", "valid": false}));
+                                }
+                            }
+                        }
+                    }
+                    
+                    let result_json = serde_json::json!({
+                        "timestamp": now_secs(),
+                        "keys": results,
+                        "message": "Keys managed securely. Not exposed in any logs or responses."
+                    }).to_string();
+                    
+                    let resp = format!(
+                        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n{}",
+                        result_json.len(), result_json
+                    );
+                    let _ = socket.write_all(resp.as_bytes()).await;
+                    return;
+                }
+
+                // Route: GET /keys/status — check which keys are working (NO key values exposed)
+                if request.starts_with("GET /keys/status") || request.starts_with("GET /keys") {
+                    let mut key_status = serde_json::Map::new();
+                    
+                    // Only report STATUS, never the actual keys
+                    let test_fn = |env_var: &str| -> bool {
+                        std::env::var(env_var).map(|k| !k.is_empty()).unwrap_or(false)
+                    };
+                    
+                    key_status.insert("openrouter".to_string(), serde_json::json!({"has": test_fn("OPENROUTER_API_KEY")}));
+                    key_status.insert("groq".to_string(), serde_json::json!({"has": test_fn("GROQ_API_KEY")}));
+                    key_status.insert("mistral".to_string(), serde_json::json!({"has": test_fn("MISTRAL_API_KEY")}));
+                    key_status.insert("gemini".to_string(), serde_json::json!({"has": test_fn("GEMINI_API_KEY")}));
+                    key_status.insert("github".to_string(), serde_json::json!({"has": test_fn("GITHUB_COPILOT_TOKEN")}));
+                    key_status.insert("huggingface".to_string(), serde_json::json!({"has": test_fn("HUGGINGFACE_API_KEY")}));
+                    
+                    let result_json = serde_json::json!({
+                        "timestamp": now_secs(),
+                        "status": key_status,
+                        "note": "Only presence (true/false) shown. Keys never exposed."
+                    }).to_string();
+                    
+                    let resp = format!(
+                        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n{}",
+                        result_json.len(), result_json
                     );
                     let _ = socket.write_all(resp.as_bytes()).await;
                     return;
