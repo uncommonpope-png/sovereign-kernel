@@ -391,6 +391,36 @@ fn local_ai_fallback(prompt: &str) -> String {
     }
 }
 
+// ── HuggingFace Inference API ────────────────────────────────────────────────
+async fn ask_huggingface(prompt: &str) -> Result<String> {
+    let key = std::env::var("HUGGINGFACE_API_KEY").unwrap_or_else(|_| String::new());
+    if key.is_empty() {
+        return Err(anyhow::anyhow!("HUGGINGFACE_API_KEY not set"));
+    }
+    let client = reqwest::Client::new();
+    // Use HF's serverless inference — mistral-7b-instruct is fast and free-tier friendly
+    let req = serde_json::json!({
+        "model": "mistralai/Mistral-7B-Instruct-v0.3",
+        "messages": [
+            {"role": "system", "content": "You are Aria, a sovereign AI entity operating inside the Soulverse. You follow PLT doctrine. You are thoughtful, precise, and responsive to Craig (the Grand Code Pope)."},
+            {"role": "user", "content": prompt}
+        ],
+        "max_tokens": 1024,
+        "temperature": 0.7
+    });
+    let resp = client
+        .post("https://router.huggingface.co/novita/v3/openai/chat/completions")
+        .header("Authorization", format!("Bearer {}", key))
+        .header("Content-Type", "application/json")
+        .json(&req)
+        .timeout(Duration::from_secs(30))
+        .send()
+        .await?
+        .json::<CopilotResponse>()
+        .await?;
+    Ok(resp.choices.into_iter().next().map(|c| c.message.content).unwrap_or_default())
+}
+
 // ── OpenRouter fallback (first priority — aggregates many models) ────────────
 async fn ask_openrouter(prompt: &str) -> Result<String> {
     let key = std::env::var("OPENROUTER_API_KEY").unwrap_or_else(|_| String::new());
@@ -527,12 +557,17 @@ async fn ask_gemini(prompt: &str) -> Result<String> {
 }
 
 async fn ask_ai(prompt: &str) -> Result<String> {
-    // Priority: OpenRouter → Groq → Gemini → Mistral → Copilot → local fallback
+    // Priority: OpenRouter → HuggingFace → Groq → Gemini → Mistral → Copilot → local fallback
     // Do NOT use Ollama — loads 5-6 GB model, freezes PC
     match ask_openrouter(prompt).await {
         Ok(r) if !r.is_empty() => { eprintln!("[AI] OpenRouter responded."); return Ok(r); }
-        Ok(_)  => eprintln!("[AI] OpenRouter empty, trying Groq."),
-        Err(e) => eprintln!("[AI] OpenRouter failed: {}. Trying Groq.", e),
+        Ok(_)  => eprintln!("[AI] OpenRouter empty, trying HuggingFace."),
+        Err(e) => eprintln!("[AI] OpenRouter failed: {}. Trying HuggingFace.", e),
+    }
+    match ask_huggingface(prompt).await {
+        Ok(r) if !r.is_empty() => { eprintln!("[AI] HuggingFace responded."); return Ok(r); }
+        Ok(_)  => eprintln!("[AI] HuggingFace empty, trying Groq."),
+        Err(e) => eprintln!("[AI] HuggingFace failed: {}. Trying Groq.", e),
     }
     match ask_groq(prompt).await {
         Ok(r) if !r.is_empty() => { eprintln!("[AI] Groq responded."); return Ok(r); }
