@@ -2070,6 +2070,17 @@ async fn journal_server_task(running: Arc<AtomicBool>) {
                     let _ = socket.write_all(resp.as_bytes()).await;
                     return;
                 }
+                
+                // Route: GET /dashboard.js
+                if request.starts_with("GET /dashboard.js") {
+                    let js = fs::read_to_string("dashboard.js").unwrap_or_default();
+                    let resp = format!(
+                        "HTTP/1.1 200 OK\r\nContent-Type: application/javascript\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n{}",
+                        js.len(), js
+                    );
+                    let _ = socket.write_all(resp.as_bytes()).await;
+                    return;
+                }
 
                 // Route: GET /keys/status — check which keys are working (NO key values exposed)
                 if request.starts_with("GET /keys/status") || request.starts_with("GET /keys") {
@@ -2248,6 +2259,26 @@ async fn journal_server_task(running: Arc<AtomicBool>) {
   .voice {{ font-style: italic; color: #9988cc; margin-bottom: 14px; font-size: 0.92em; }}
   .text {{ line-height: 1.8; color: #ccc0ee; font-size: 1.05em; }}
   .empty {{ text-align: center; color: #443366; margin-top: 100px; font-size: 1.2em; }}
+  
+  /* ====== PINK MATRIX RAIN ====== */
+  #matrix-canvas {{ position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: -1; }}
+  
+  /* ====== 3D PULSE GRID ====== */
+  #grid-canvas {{ position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: -2; }}
+  
+  /* ====== PARTICLES ====== */
+  .particle {{ position: fixed; border-radius: 50%; background: radial-gradient(circle, #ff77aa44 0%, transparent 70%); pointer-events: none; animation: float 8s ease-in-out infinite; }}
+  @keyframes float {{ 0%,100% {{ transform: translateY(0) rotate(0deg); opacity: 0.3; }} 50% {{ transform: translateY(-40px) rotate(180deg); opacity: 0.8; }} }}
+  
+  /* ====== KEY STATUS UI ====== */
+  #key-panel {{ position: fixed; top: 20px; right: 20px; background: #0d0b1588; border: 1px solid #5533aa; border-radius: 8px; padding: 12px 16px; z-index: 1000; font-size: 0.75em; }}
+  #key-panel .key-row {{ display: flex; align-items: center; gap: 8px; margin: 4px 0; }}
+  #key-panel .dot {{ width: 8px; height: 8px; border-radius: 50%; background: #333; }}
+  #key-panel .dot.on {{ background: #44ff88; box-shadow: 0 0 8px #44ff88; }}
+  #key-panel .dot.off {{ background: #ff4444; }}
+  #key-panel button {{ background: #331155; color: #aa88ff; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 0.9em; margin-top: 8px; }}
+  #key-panel button:hover {{ background: #5522aa; }}
+  
   .refresh {{ text-align: center; color: #443366; font-size: 0.8em; margin-top: 40px; }}
   .compose {{ position: fixed; bottom: 0; left: 0; right: 0; background: #0d0b15; border-top: 2px solid #5533aa; padding: 16px 20px; display: flex; gap: 10px; align-items: flex-end; }}
   .compose textarea {{ flex: 1; background: #1a1530; color: #d4c8ff; border: 1px solid #5533aa; border-radius: 6px; padding: 10px 14px; font-family: 'Georgia', serif; font-size: 1em; resize: none; height: 56px; outline: none; }}
@@ -2256,9 +2287,49 @@ async fn journal_server_task(running: Arc<AtomicBool>) {
   .compose button:hover {{ background: #7755cc; }}
   .compose .label {{ color: #aa8833; font-size: 0.85em; white-space: nowrap; align-self: center; }}
   #status {{ font-size: 0.8em; color: #44ccbb; align-self: center; min-width: 60px; }}
+  
+  /* ====== KEY MODAL ====== */
+  #key-modal {{ display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: #000c; z-index: 2000; align-items: center; justify-content: center; }}
+  #key-modal.show {{ display: flex; }}
+  #key-modal > div {{ background: #12101a; border: 2px solid #5533aa; border-radius: 12px; padding: 30px; max-width: 500px; width: 90%; }}
+  #key-modal h2 {{ color: #b08cff; margin-bottom: 20px; }}
+  #key-modal input {{ width: 100%; background: #1a1530; color: #d4c8ff; border: 1px solid #5533aa; padding: 10px; border-radius: 6px; margin-bottom: 12px; font-size: 0.9em; }}
+  #key-modal .btn-row {{ display: flex; gap: 10px; margin-top: 16px; }}
+  #key-modal button {{ flex: 1; padding: 10px; border-radius: 6px; cursor: pointer; }}
+  #key-modal .save-btn {{ background: #44aa55; color: #fff; border: none; }}
+  #key-modal .close-btn {{ background: transparent; color: #8877aa; border: 1px solid #5533aa; }}
 </style>
 </head>
 <body>
+<!-- VISUAL EFFECTS -->
+<canvas id="grid-canvas"></canvas>
+<canvas id="matrix-canvas"></canvas>
+
+<!-- KEY STATUS PANEL -->
+<div id="key-panel">
+  <div style="color:#aa88ff;margin-bottom:8px;">⚡ KEYS</div>
+  <div class="key-row"><span class="dot" id="dot-openrouter"></span><span>OpenRouter</span></div>
+  <div class="key-row"><span class="dot" id="dot-copilot"></span><span>Copilot</span></div>
+  <div class="key-row"><span class="dot" id="dot-mistral"></span><span>Mistral</span></div>
+  <div class="key-row"><span class="dot" id="dot-gemini"></span><span>Gemini</span></div>
+  <button onclick="showKeyModal()">Update Keys</button>
+</div>
+
+<!-- KEY MODAL -->
+<div id="key-modal">
+  <div>
+    <h2>⚡ Update API Keys</h2>
+    <input type="password" id="key-openrouter" placeholder="OpenRouter API Key">
+    <input type="password" id="key-copilot" placeholder="GitHub Copilot Token">
+    <input type="password" id="key-mistral" placeholder="Mistral API Key">
+    <input type="password" id="key-gemini" placeholder="Gemini API Key">
+    <div class="btn-row">
+      <button class="save-btn" onclick="saveKeys()">Save Keys</button>
+      <button class="close-btn" onclick="hideKeyModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <h1>✦ Aria's Journal ✦</h1>
 <div class="subtitle">{total} entries &nbsp;·&nbsp; refreshes every 15s (pauses while you type)</div>
 {entries_or_empty}
@@ -2281,7 +2352,7 @@ async fn journal_server_task(running: Arc<AtomicBool>) {
     clearTimeout(_typeTimer);
     _typeTimer = setTimeout(function() {{ _typing = false; }}, 5000);
   }});
-  setInterval(function() {{
+setInterval(function() {{
     if (!_typing) {{ location.reload(); }}
   }}, 15000);
   function sendMsg() {{
@@ -2300,6 +2371,7 @@ async fn journal_server_task(running: Arc<AtomicBool>) {
     }}).catch(() => {{ st.textContent = 'error'; }});
   }}
 </script>
+<script src="/dashboard.js"></script>
 </body>
 </html>"#,
                     total = total,
