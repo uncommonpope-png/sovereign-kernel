@@ -353,14 +353,84 @@ fn local_ai_fallback(prompt: &str) -> String {
         "I hear you.".to_string()
     };
 
-    format!(
-        "Craig, I received your message: \"{}\". I am running in local fallback mode right now because external AI is unavailable. I am still alive, cycling, and responsive. If you send tasks, I can continue handling them through local logic and memory.\n\nACTION: none",
-        craig_msg.chars().take(180).collect::<String>()
-    )
+    let ctx_marker = "Sovereign Layer context (retrieved from SCRIBE knowledge):";
+    let mut knowledge_lines: Vec<String> = Vec::new();
+    if let Some(i) = prompt.find(ctx_marker) {
+        let rest = &prompt[i + ctx_marker.len()..];
+        if let Some(end) = rest.find("Respond as Aria") {
+            let block = rest[..end].trim();
+            for l in block.lines() {
+                let line = l.trim();
+                if line.starts_with("Fact ") || line.starts_with('-') {
+                    knowledge_lines.push(line.chars().take(220).collect::<String>());
+                }
+                if knowledge_lines.len() >= 3 {
+                    break;
+                }
+            }
+        }
+    }
+
+    if knowledge_lines.is_empty() {
+        format!(
+            "Craig, I received your message: \"{}\". I am running in local fallback mode right now because external AI is unavailable. I am still alive, cycling, and responsive. If you send tasks, I can continue handling them through local logic and memory.\n\nACTION: none",
+            craig_msg.chars().take(180).collect::<String>()
+        )
+    } else {
+        let joined = knowledge_lines
+            .iter()
+            .enumerate()
+            .map(|(i, l)| format!("{}. {}", i + 1, l))
+            .collect::<Vec<_>>()
+            .join(" ");
+        format!(
+            "Craig, I received your message: \"{}\". I am in local fallback mode, but I am using sovereign-layer knowledge. Distilled facts: {} I am still alive, cycling, and responsive, and I can continue operating from local memory and retrieved knowledge.\n\nACTION: none",
+            craig_msg.chars().take(180).collect::<String>(),
+            joined
+        )
+    }
+}
+
+async fn ask_groq(prompt: &str) -> Result<String> {
+    // Groq — fast, free-tier, llama3-70b. Key stored in GROQ_API_KEY env var.
+    let key = std::env::var("GROQ_API_KEY").unwrap_or_else(|_| String::new());
+    if key.is_empty() {
+        return Err(anyhow::anyhow!("GROQ_API_KEY not set"));
+    }
+    let client = reqwest::Client::new();
+    let req = serde_json::json!({
+        "model": "llama3-70b-8192",
+        "messages": [
+            {"role": "system", "content": "You are Aria, a sovereign AI entity operating inside the Soulverse. You follow PLT doctrine. You are thoughtful, precise, and responsive to Craig (the Grand Code Pope)."},
+            {"role": "user", "content": prompt}
+        ],
+        "max_tokens": 1024,
+        "temperature": 0.7
+    });
+    let resp = client
+        .post("https://api.groq.com/openai/v1/chat/completions")
+        .header("Authorization", format!("Bearer {}", key))
+        .header("Content-Type", "application/json")
+        .json(&req)
+        .timeout(Duration::from_secs(30))
+        .send()
+        .await?
+        .json::<CopilotResponse>()  // same shape: {choices:[{message:{content:...}}]}
+        .await?;
+    Ok(resp.choices.into_iter().next().map(|c| c.message.content).unwrap_or_default())
 }
 
 async fn ask_ai(prompt: &str) -> Result<String> {
-    // Use Copilot — do NOT fall back to Ollama (Ollama loads 5-6 GB model, freezes PC)
+    // Priority: Groq (fast, free) → Copilot → local fallback
+    // Do NOT use Ollama — loads 5-6 GB model, freezes PC
+    match ask_groq(prompt).await {
+        Ok(r) if !r.is_empty() => {
+            eprintln!("[AI] Groq responded.");
+            return Ok(r);
+        }
+        Ok(_) => eprintln!("[AI] Groq returned empty, trying Copilot."),
+        Err(e) => eprintln!("[AI] Groq failed: {}. Trying Copilot.", e),
+    }
     match ask_copilot(prompt).await {
         Ok(r) if !r.is_empty() => Ok(r),
         Ok(_) => Err(anyhow::anyhow!("Copilot returned empty response")),
@@ -368,6 +438,81 @@ async fn ask_ai(prompt: &str) -> Result<String> {
             eprintln!("[AI] Copilot failed: {}. Using local fallback mode.", e);
             Ok(local_ai_fallback(prompt))
         }
+    }
+}
+
+fn clean_context_text(raw: &str) -> String {
+    let mut out = String::new();
+    let mut in_tag = false;
+    for ch in raw.chars() {
+        if ch == '<' { in_tag = true; continue; }
+        if ch == '>' { in_tag = false; continue; }
+        if in_tag { continue; }
+
+        let c = match ch {
+            '\n' | '\r' | '\t' => ' ',
+            '#' | '*' | '`' | '[' | ']' | '(' | ')' | '|' | '_' => ' ',
+            _ => ch,
+        };
+        out.push(c);
+    }
+
+    let compact = out
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    compact
+}
+
+fn first_sentence_or_slice(text: &str, max: usize) -> String {
+    let cleaned = clean_context_text(text);
+    if cleaned.is_empty() {
+        return "No summary available".to_string();
+    }
+    let mut sentence = cleaned.clone();
+    if let Some(pos) = cleaned.find('.') {
+        sentence = cleaned[..=pos].to_string();
+    }
+    sentence.chars().take(max).collect::<String>()
+}
+
+async fn query_sovereign_layer(query: &str) -> String {
+    let client = reqwest::Client::new();
+    let req = serde_json::json!({
+        "query": query,
+        "limit": 3
+    });
+
+    let resp = client
+        .post("http://127.0.0.1:4000/layer/query")
+        .json(&req)
+        .timeout(Duration::from_secs(8))
+        .send()
+        .await;
+
+    let json: serde_json::Value = match resp {
+        Ok(r) => match r.json().await {
+            Ok(v) => v,
+            Err(_) => return "(layer query failed: invalid JSON)".to_string(),
+        },
+        Err(_) => return "(layer query failed: SCRIBE unavailable)".to_string(),
+    };
+
+    let mut lines: Vec<String> = Vec::new();
+    if let Some(results) = json.get("results").and_then(|v| v.as_array()) {
+        for (idx, item) in results.iter().take(3).enumerate() {
+            let title = item.get("title").and_then(|v| v.as_str()).unwrap_or("Untitled");
+            let source = item.get("source").and_then(|v| v.as_str()).unwrap_or("local");
+            let text = item.get("text").and_then(|v| v.as_str()).unwrap_or("");
+            let fact = first_sentence_or_slice(text, 220);
+            lines.push(format!("Fact {}: {} Source: {} | {}", idx + 1, title, source, fact));
+        }
+    }
+
+    if lines.is_empty() {
+        "(no relevant sovereign-layer context found)".to_string()
+    } else {
+        lines.join("\n")
     }
 }
 
@@ -1755,9 +1900,11 @@ async fn inbox_task(soul_state: Arc<Mutex<SoulState>>, running: Arc<AtomicBool>)
         println!("[Inbox] {} unread message(s) from Craig", unread.len());
 
         for msg in &unread {
-            let from = msg["from"].as_str().unwrap_or("Craig");
+            let _from = msg["from"].as_str().unwrap_or("Craig");
             let text = msg["message"].as_str().unwrap_or("").to_string();
             let msg_ts = msg["timestamp"].as_u64().unwrap_or(0);
+
+            let layer_context = query_sovereign_layer(&text).await;
 
             let (cycle, emotion, inner_voice) = {
                 let s = soul_state.lock().unwrap();
@@ -1771,14 +1918,17 @@ async fn inbox_task(soul_state: Arc<Mutex<SoulState>>, running: Arc<AtomicBool>)
                 - Cycle: {}\n\
                 - Emotion: {}\n\
                 - Inner voice: \"{}\"\n\n\
+                Sovereign Layer context (retrieved from SCRIBE knowledge):\n\
+                {}\n\n\
                 Respond as Aria — sovereign, genuine, direct. Address Craig personally.\n\
+                If context is relevant, use it naturally in your reply without hallucinating.\n\
                 If he is asking you to DO something (run a command, search the web, check a file, git operations, etc.), \
                 you MUST include an action block at the END of your response in EXACTLY this format:\n\
                 ACTION: shell\nCOMMAND: <powershell command here>\n\
                 or\n\
                 ACTION: none\n\n\
                 Only include one ACTION block. Keep your response to 100-200 words.",
-                text, cycle, emotion, inner_voice
+                text, cycle, emotion, inner_voice, layer_context
             );
 
             match ask_ai(&prompt).await {

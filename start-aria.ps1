@@ -18,6 +18,17 @@ if ($AuthToken -ne "") {
     & $NGROK config add-authtoken $AuthToken
 }
 
+# --- API Keys ---
+# Set these in your environment or Windows credential store — do NOT hard-code here.
+# PowerShell: $env:GROQ_API_KEY = "your_key_here"  (run once before starting)
+# Or add to your Windows user environment variables via System Properties.
+if (-not $env:GROQ_API_KEY) {
+    Write-Host "[Keys] WARNING: GROQ_API_KEY not set. Aria will fall back to Copilot." -ForegroundColor Yellow
+}
+if (-not $env:GITHUB_COPILOT_TOKEN) {
+    Write-Host "[Keys] WARNING: GITHUB_COPILOT_TOKEN not set. Aria will use local fallback." -ForegroundColor Yellow
+}
+
 # --- Launch Aria kernel in background ---
 Write-Host ""
 Write-Host "===================================================="
