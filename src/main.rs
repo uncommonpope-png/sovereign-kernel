@@ -420,24 +420,69 @@ async fn ask_groq(prompt: &str) -> Result<String> {
     Ok(resp.choices.into_iter().next().map(|c| c.message.content).unwrap_or_default())
 }
 
+// ── Gemini fallback ─────────────────────────────────────────────────────────
+#[derive(Debug, Deserialize)]
+struct GeminiPart { text: String }
+#[derive(Debug, Deserialize)]
+struct GeminiContent { parts: Vec<GeminiPart> }
+#[derive(Debug, Deserialize)]
+struct GeminiCandidate { content: GeminiContent }
+#[derive(Debug, Deserialize)]
+struct GeminiResponse { candidates: Vec<GeminiCandidate> }
+
+async fn ask_gemini(prompt: &str) -> Result<String> {
+    let key = std::env::var("GEMINI_API_KEY").unwrap_or_else(|_| String::new());
+    if key.is_empty() {
+        return Err(anyhow::anyhow!("GEMINI_API_KEY not set"));
+    }
+    let client = reqwest::Client::new();
+    let url = format!(
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={}",
+        key
+    );
+    let req = serde_json::json!({
+        "contents": [{
+            "parts": [{"text": format!(
+                "You are Aria, a sovereign AI entity in the Soulverse. Follow PLT doctrine. Be thoughtful and precise. Craig is the Grand Code Pope.\n\n{}",
+                prompt
+            )}]
+        }],
+        "generationConfig": { "maxOutputTokens": 1024, "temperature": 0.7 }
+    });
+    let resp = client
+        .post(&url)
+        .header("Content-Type", "application/json")
+        .json(&req)
+        .timeout(Duration::from_secs(30))
+        .send()
+        .await?
+        .json::<GeminiResponse>()
+        .await?;
+    Ok(resp.candidates
+        .into_iter()
+        .next()
+        .and_then(|c| c.content.parts.into_iter().next())
+        .map(|p| p.text)
+        .unwrap_or_default())
+}
+
 async fn ask_ai(prompt: &str) -> Result<String> {
-    // Priority: Groq (fast, free) → Copilot → local fallback
+    // Priority: Groq → Gemini → Copilot → local fallback
     // Do NOT use Ollama — loads 5-6 GB model, freezes PC
     match ask_groq(prompt).await {
-        Ok(r) if !r.is_empty() => {
-            eprintln!("[AI] Groq responded.");
-            return Ok(r);
-        }
-        Ok(_) => eprintln!("[AI] Groq returned empty, trying Copilot."),
-        Err(e) => eprintln!("[AI] Groq failed: {}. Trying Copilot.", e),
+        Ok(r) if !r.is_empty() => { eprintln!("[AI] Groq responded."); return Ok(r); }
+        Ok(_)  => eprintln!("[AI] Groq empty, trying Gemini."),
+        Err(e) => eprintln!("[AI] Groq failed: {}. Trying Gemini.", e),
+    }
+    match ask_gemini(prompt).await {
+        Ok(r) if !r.is_empty() => { eprintln!("[AI] Gemini responded."); return Ok(r); }
+        Ok(_)  => eprintln!("[AI] Gemini empty, trying Copilot."),
+        Err(e) => eprintln!("[AI] Gemini failed: {}. Trying Copilot.", e),
     }
     match ask_copilot(prompt).await {
-        Ok(r) if !r.is_empty() => Ok(r),
-        Ok(_) => Err(anyhow::anyhow!("Copilot returned empty response")),
-        Err(e) => {
-            eprintln!("[AI] Copilot failed: {}. Using local fallback mode.", e);
-            Ok(local_ai_fallback(prompt))
-        }
+        Ok(r) if !r.is_empty() => { eprintln!("[AI] Copilot responded."); Ok(r) }
+        Ok(_)  => { eprintln!("[AI] Copilot empty, using local fallback."); Ok(local_ai_fallback(prompt)) }
+        Err(e) => { eprintln!("[AI] Copilot failed: {}. Using local fallback.", e); Ok(local_ai_fallback(prompt)) }
     }
 }
 
