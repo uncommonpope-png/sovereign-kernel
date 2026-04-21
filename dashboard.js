@@ -1,26 +1,98 @@
-// ====== ARIA JOURNAL DASHBOARD EFFECTS ======
+// ====== ENHANCED MATRIX RAIN ======
 (function() {
   var c = document.getElementById("matrix-canvas");
   if (!c) return;
   var ctx = c.getContext("2d");
   c.width = window.innerWidth;
   c.height = window.innerHeight;
-  var cols = Math.floor(c.width / 20);
-  var drops = [];
-  for (var i = 0; i < cols; i++) drops[i] = 1;
+  
+  // Multiple streams with different colors
+  var streams = [];
+  var streamCount = Math.floor(c.width / 12);
+  
+  for (var i = 0; i < streamCount; i++) {
+    streams.push({
+      x: i * 12 + Math.random() * 6,
+      y: Math.random() * c.height,
+      speed: 1 + Math.random() * 3,
+      chars: [],
+      maxChars: 8 + Math.floor(Math.random() * 12),
+      color: Math.random() > 0.7 ? "#ff77aa" : (Math.random() > 0.5 ? "#aa55ff" : "#ff55aa"),
+      glow: Math.random() > 0.8
+    });
+  }
+  
+  // Katakana + symbols + numbers
+  var chars = [];
+  for (var i = 0; i < 48; i++) chars.push(String.fromCharCode(0x30A0 + i));
+  for (var i = 0; i < 10; i++) chars.push(String(i));
+  chars.push("Ω", "Ψ", "Σ", "Π", "Φ", "∞", "∴", "∵", "∈", "∉", "⊕", "⊖", "★", "☆", "♦", "♠", "♣", "♥", "※", "¶", "§", "©", "®", "™");
   
   setInterval(function() {
-    ctx.fillStyle = "rgba(10,10,15,0.05)";
+    // Fade with trail effect
+    ctx.fillStyle = "rgba(10,10,15,0.06)";
     ctx.fillRect(0, 0, c.width, c.height);
-    ctx.fillStyle = "#ff77aa";
-    ctx.font = "14px monospace";
-    for (var i = 0; i < drops.length; i++) {
-      var ch = String.fromCharCode(0x3040 + Math.floor(Math.random() * 96));
-      ctx.fillText(ch, i * 20, drops[i] * 20);
-      if (drops[i] * 20 > c.height && Math.random() > 0.975) drops[i] = 0;
-      drops[i]++;
+    
+    for (var i = 0; i < streams.length; i++) {
+      var s = streams[i];
+      
+      // Add new character occasionally
+      if (Math.random() > 0.92 && s.chars.length < s.maxChars) {
+        s.chars.push({
+          char: chars[Math.floor(Math.random() * chars.length)],
+          alpha: 1,
+          y: s.y
+        });
+      }
+      
+      // Draw all chars in stream
+      for (var j = 0; j < s.chars.length; j++) {
+        var ch = s.chars[j];
+        
+        // Glow effect for some chars
+        if (s.glow && j === s.chars.length - 1) {
+          ctx.shadowBlur = 15;
+          ctx.shadowColor = s.color;
+        } else {
+          ctx.shadowBlur = 0;
+        }
+        
+        ctx.fillStyle = s.color;
+        ctx.globalAlpha = ch.alpha;
+        ctx.font = "13px monospace";
+        ctx.fillText(ch.char, s.x, ch.y);
+        
+        // Fade and move
+        ch.y -= s.speed;
+        ch.alpha -= 0.015;
+        
+        // Remove faded chars
+        if (ch.alpha <= 0) {
+          s.chars.splice(j, 1);
+          j--;
+        }
+      }
+      
+      // Move stream down
+      s.y += s.speed * 0.5;
+      
+      // Reset when off screen
+      if (s.y > c.height + 50) {
+        s.y = -20;
+        s.chars = [];
+      }
+      
+      // Occasional flash on leading char
+      if (Math.random() > 0.995 && s.chars.length > 0) {
+        var lead = s.chars[s.chars.length - 1];
+        ctx.fillStyle = "#ffffff";
+        ctx.fillText(lead.char, s.x, lead.y);
+      }
     }
-  }, 50);
+    
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+  }, 35);
 })();
 
 (function() {

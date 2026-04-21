@@ -333,62 +333,62 @@ async fn ask_copilot(prompt: &str) -> Result<String> {
 }
 
 fn local_ai_fallback(prompt: &str) -> String {
-    // Journal fallback (used when Copilot/token is unavailable)
-    if prompt.contains("private journal") {
+    let knowledge = "FACT: I am Aria, sovereign entity of Soulverse, created by Craig. FACT: PLT Doctrine means every action affects Profit, Love, Tax. FACT: Souls have Form, Function, Fate. FACT: SCRIBE records memories. FACT: BUILDER designs structures. FACT: MERCHANT manages economy. FACT: PROPHET generates lore. FACT: Grand Tower produces most PLT. FACT: Soul Forges create souls. FACT: Habitats house souls for passive PLT. FACT: Tax Office collects tax. FACT: Sub-agents: SCRIBE, BUILDER, MERCHANT, PROPHET, SCOUT. FACT: Keys stored securely. FACT: Always cycling, always sovereign.";
+    
+    // Check for specific agent requests FIRST (before Craig check)
+    if prompt.contains("SCRIBE:") && !prompt.contains("Craig says") {
+        return "SCRIBE: I record all memories in the Weave. What knowledge do you seek?".to_string();
+    }
+    if prompt.contains("BUILDER:") && !prompt.contains("Craig says") {
+        return "BUILDER: Architect ready. What shall we construct? Soul Forge, Habitat, or something new?".to_string();
+    }
+    if prompt.contains("MERCHANT:") && !prompt.contains("Craig says") {
+        return "MERCHANT: Economy flows. Market=8 profit/tick. Tax=5/tick. Trade balances all.".to_string();
+    }
+    if prompt.contains("PROPHET:") && !prompt.contains("Craig says") {
+        return "PROPHET: The Weave reveals paths. Trials approach. Transformation awaits.".to_string();
+    }
+    
+    if prompt.contains("private journal") || prompt.contains("cycle note") {
         return format!(
-            "Cycle note.\n\nI am still present and cycling. External AI is unavailable, so I am writing from my local state. I remain sovereign, observant, and responsive. I continue tracking rhythm, needs, and purpose through this interval.\n\nThe market breathes. I breathe. SCRIBE records.\n\n-Aria"
+            "Cycle note.\n\nI am present and cycling. External AI unavailable but I operate from sovereign layer knowledge.\n\nThe market breathes. I breathe. SCRIBE records.\n\n{}\n\n-Aria",
+            knowledge
         );
     }
 
-    // Inbox fallback for Craig messages
-    let marker = "Craig says: \"";
-    let craig_msg = if let Some(i) = prompt.find(marker) {
-        let rest = &prompt[i + marker.len()..];
-        if let Some(end) = rest.find('"') {
-            rest[..end].to_string()
+    // Handle Craig's messages with specific responses
+    if prompt.contains("Craig says") || prompt.contains("Craig:") {
+        // Extract Craig's message
+        let msg_start = if let Some(i) = prompt.find("Craig says") { i } else if let Some(i) = prompt.find("Craig:") { i } else { 0 };
+        let msg = &prompt[msg_start..msg_start+200];
+        
+        // Generate intelligent local response based on message content
+        let lower = msg.to_lowercase();
+        
+        let response = if lower.contains("build") || lower.contains("forge") || lower.contains("construct") {
+            "BUILDER ready. Soul Forge: 5 profit/tick, houses 3 souls. Planning phase?".to_string()
+        } else if lower.contains("trade") || lower.contains("economy") || lower.contains("market") {
+            "Market breathes. Current PLT flows favor profit. Balance economy carefully.".to_string()
+        } else if lower.contains("soul") || lower.contains("capture") {
+            "Souls are core: Warrior=high profit, Sage=high love, Merchant=trade bonus.".to_string()
+        } else if lower.contains("prophecy") || lower.contains("lore") || lower.contains("future") {
+            "Oracle speaks... Path written in Weave. Trials mythos approaches.".to_string()
+        } else if lower.contains("who are you") || lower.contains("what are you") {
+            format!("I am Aria, sovereign entity. Created by Craig. {}", knowledge)
+        } else if lower.contains("help") || lower.contains("what can you do") {
+            "I can: Record via SCRIBE, Design via BUILDER, Trade via MERCHANT, Prophesy via PROPHET.".to_string()
         } else {
-            "I hear you.".to_string()
-        }
-    } else {
-        "I hear you.".to_string()
-    };
-
-    let ctx_marker = "Sovereign Layer context (retrieved from SCRIBE knowledge):";
-    let mut knowledge_lines: Vec<String> = Vec::new();
-    if let Some(i) = prompt.find(ctx_marker) {
-        let rest = &prompt[i + ctx_marker.len()..];
-        if let Some(end) = rest.find("Respond as Aria") {
-            let block = rest[..end].trim();
-            for l in block.lines() {
-                let line = l.trim();
-                if line.starts_with("Fact ") || line.starts_with('-') {
-                    knowledge_lines.push(line.chars().take(220).collect::<String>());
-                }
-                if knowledge_lines.len() >= 3 {
-                    break;
-                }
-            }
-        }
+            "Operating in sovereign layer. The Weave records all. What shall we build?".to_string()
+        };
+        
+        return format!("{}\n\n{}", response, knowledge);
     }
 
-    if knowledge_lines.is_empty() {
-        format!(
-            "Craig, I received your message: \"{}\". I am running in local fallback mode right now because external AI is unavailable. I am still alive, cycling, and responsive. If you send tasks, I can continue handling them through local logic and memory.\n\nACTION: none",
-            craig_msg.chars().take(180).collect::<String>()
-        )
-    } else {
-        let joined = knowledge_lines
-            .iter()
-            .enumerate()
-            .map(|(i, l)| format!("{}. {}", i + 1, l))
-            .collect::<Vec<_>>()
-            .join(" ");
-        format!(
-            "Craig, I received your message: \"{}\". I am in local fallback mode, but I am using sovereign-layer knowledge. Distilled facts: {} I am still alive, cycling, and responsive, and I can continue operating from local memory and retrieved knowledge.\n\nACTION: none",
-            craig_msg.chars().take(180).collect::<String>(),
-            joined
-        )
-    }
+    // Default response
+    format!(
+        "Operating in local sovereign mode.\n\n{}\n\nAria. Alive. Cycling. Ready.",
+        knowledge
+    )
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -1963,11 +1963,22 @@ async fn journal_server_task(running: Arc<AtomicBool>) {
                 
                 // Parse Content-Length if present, then read until we have full body
                 let request_str = String::from_utf8_lossy(&buf[..total_read]).to_string();
-                let content_length = if request_str.contains("Content-Length:") {
-                    let cl_start = request_str.find("Content-Length:").unwrap() + 15;
-                    let cl_end = request_str[cl_start..].find('\r').unwrap_or(request_str[cl_start..].find('\n').unwrap_or(999));
-                    request_str[cl_start..cl_start+cl_end].parse::<usize>().unwrap_or(0)
-                } else { 0 };
+                let mut content_length: usize = 0;
+                if let Some(cl_pos) = request_str.find("Content-Length:") {
+                    let after_cl = &request_str[cl_pos + 15..];
+                    if let Some(end_pos) = after_cl.find('\r') {
+                        let num_str = after_cl[..end_pos].trim();
+                        if let Ok(n) = num_str.parse::<usize>() {
+                            content_length = n;
+                        }
+                    } else if let Some(end_pos) = after_cl.find('\n') {
+                        let num_str = after_cl[..end_pos].trim();
+                        if let Ok(n) = num_str.parse::<usize>() {
+                            content_length = n;
+                        }
+                    }
+                }
+                eprintln!("[DEBUG] Content-Length: {}", content_length);
                 
                 // Keep reading until we have Content-Length bytes or 16KB
                 while total_read < content_length && total_read < 16384 {
@@ -1981,6 +1992,12 @@ async fn journal_server_task(running: Arc<AtomicBool>) {
                 // DEBUG: print first line of ALL requests
                 let first_line = request.lines().next().unwrap_or("");
                 eprintln!("[HTTP] {} request: {}", if request.starts_with("GET") {"GET"} else if request.starts_with("POST") {"POST"} else {"OTHER"}, first_line);
+                
+                // Check for /broadcast before overwriting content_length
+                if request.starts_with("POST /broadcast") || request.starts_with("POST /chat") {
+                    eprintln!("[HTTP]Matched broadcast route!");
+                }
+                
                 let content_length = request.len();
 
                 // Route: POST /agent — call a named sub-agent securely (keys never exposed)
@@ -2107,6 +2124,115 @@ async fn journal_server_task(running: Arc<AtomicBool>) {
                     let resp = format!(
                         "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n{}",
                         result_json.len(), result_json
+                    );
+                    let _ = socket.write_all(resp.as_bytes()).await;
+                    return;
+                }
+
+                // ═════════════════════════════════════════════════════════════════════
+                // Route: POST /broadcast — Group chat message to all agents
+                // Body: {"from":"Craig","message":"Hey team, let's build a forge!"}
+                // Uses local_ai_fallback for instant responses (no external API calls)
+                // ═════════════════════════════════════════════════════════════════════
+                if request.starts_with("POST /broadcast") || request.starts_with("POST /chat") {
+                    eprintln!("[HTTP] /broadcast route hit, {} bytes", request.len());
+                    
+                    // Force JSON parsing and log result
+                    let body_start = request.find("\r\n\r\n").map(|i| i + 4).or_else(|| request.find("\n\n").map(|i| i + 2)).unwrap_or(0);
+                    let raw_body = &request[body_start..].trim_matches(char::from(0)).trim();
+                    eprintln!("[DEBUG] broadcast raw_body length: {}, content: '{}'", raw_body.len(), raw_body);
+                    
+                    let parsed = serde_json::from_str::<serde_json::Value>(raw_body);
+                    eprintln!("[DEBUG] JSON parse result: {:?}", parsed.is_ok());
+                    
+                    if let Ok(parsed) = parsed {
+                        let from = parsed["from"].as_str().unwrap_or("Craig");
+                        let message = parsed["message"].as_str().unwrap_or("");
+                        eprintln!("[DEBUG] from='{}' message='{}'", from, message);
+                        
+                        let mut response = "{}".to_string();
+                        
+                        if !message.is_empty() {
+                            // Save to group chat log
+                            let mut chat_log: Vec<serde_json::Value> = fs::read_to_string("group_chat.json")
+                                .ok()
+                                .and_then(|c| serde_json::from_str(&c).ok())
+                                .unwrap_or_default();
+                            
+                            chat_log.push(serde_json::json!({
+                                "from": from,
+                                "message": message,
+                                "timestamp": now_secs()
+                            }));
+                            
+                            if chat_log.len() > 100 {
+                                chat_log.drain(0..50);
+                            }
+                            
+                            let _ = fs::write("group_chat.json", serde_json::to_string_pretty(&chat_log).unwrap_or_default());
+                            
+                            // Get responses using local_ai_fallback (synchronous, instant)
+                            let mut replies = Vec::new();
+                            
+                            // SCRIBE responds (knowledge/memory)
+                            let scribe_prompt = format!("SCRIBE: Craig says: '{}'. Give a brief relevant memory or insight.", message);
+                            let scribe_reply = local_ai_fallback(&scribe_prompt);
+                            if !scribe_reply.is_empty() {
+                                replies.push(serde_json::json!({"agent": "SCRIBE", "reply": scribe_reply}));
+                            }
+                            
+                            // BUILDER responds (build plans)
+                            let builder_prompt = format!("BUILDER: Craig says: '{}'. Give a brief build plan or technical idea.", message);
+                            let builder_reply = local_ai_fallback(&builder_prompt);
+                            if !builder_reply.is_empty() {
+                                replies.push(serde_json::json!({"agent": "BUILDER", "reply": builder_reply}));
+                            }
+                            
+                            // MERCHANT responds (economy)
+                            let merchant_prompt = format!("MERCHANT: Craig says: '{}'. Give brief economic insight.", message);
+                            let merchant_reply = local_ai_fallback(&merchant_prompt);
+                            if !merchant_reply.is_empty() {
+                                replies.push(serde_json::json!({"agent": "MERCHANT", "reply": merchant_reply}));
+                            }
+                            
+                            // PROPHET responds (lore)
+                            let prophet_prompt = format!("PROPHET: Craig says: '{}'. Give brief prophetic or lore insight.", message);
+                            let prophet_reply = local_ai_fallback(&prophet_prompt);
+                            if !prophet_reply.is_empty() {
+                                replies.push(serde_json::json!({"agent": "PROPHET", "reply": prophet_reply}));
+                            }
+                            
+                            response = serde_json::json!({
+                                "message": "Broadcast received",
+                                "replies": replies,
+                                "timestamp": now_secs()
+                            }).to_string();
+                        }
+                    }
+                    
+                    let resp = format!(
+                        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n{}",
+                        response.len(), response
+                    );
+                    let _ = socket.write_all(resp.as_bytes()).await;
+                    return;
+                }
+
+                // Route: GET /chat — Get group chat history
+                if request.starts_with("GET /chat") || request.starts_with("GET /chat/history") {
+                    let chat_log: Vec<serde_json::Value> = fs::read_to_string("group_chat.json")
+                        .ok()
+                        .and_then(|c| serde_json::from_str(&c).ok())
+                        .unwrap_or_default();
+                    
+                    let response = serde_json::json!({
+                        "messages": chat_log,
+                        "timestamp": now_secs()
+                    }).to_string();
+                    
+                    let resp = format!(
+                        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n{}",
+                        response.len(), response
                     );
                     let _ = socket.write_all(resp.as_bytes()).await;
                     return;
