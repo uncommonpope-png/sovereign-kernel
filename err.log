@@ -1,0 +1,276 @@
+[AI] OpenRouter failed: API error: {"code":429,"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0","X-RateLimit-Reset":"1776902400000"},"provider_name":null}}
+[AI] Copilot ✓
+[AI] OpenRouter failed: API error: {"code":429,"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0","X-RateLimit-Reset":"1776902400000"},"provider_name":null}}
+[AI] Copilot ✓
+
+thread 'tokio-rt-worker' (11588) panicked at C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_json-1.0.149\src\value\index.rs:102:18:
+cannot access key "read" in JSON string
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+[AI] OpenRouter failed: API error: {"code":429,"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0","X-RateLimit-Reset":"1776902400000"},"provider_name":null}}
+[AI] Copilot ✓
+[AI] OpenRouter failed: API error: {"code":429,"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0","X-RateLimit-Reset":"1776902400000"},"provider_name":null}}
+[AI] Copilot ✓
+[AI] OpenRouter failed: API error: {"code":429,"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0","X-RateLimit-Reset":"1776902400000"},"provider_name":null}}
+[AI] Copilot ✓
+[AI] OpenRouter failed: API error: {"code":429,"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0","X-RateLimit-Reset":"1776902400000"},"provider_name":null}}
+[AI] Copilot ✓
+[AI] OpenRouter failed: API error: {"code":429,"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0","X-RateLimit-Reset":"1776902400000"},"provider_name":null}}
+[AI] OpenRouter failed: API error: {"code":429,"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0","X-RateLimit-Reset":"1776902400000"},"provider_name":null}}
+[AI] Copilot ✓
+[AI] Copilot ✓
+[AI] OpenRouter failed: API error: {"code":429,"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0","X-RateLimit-Reset":"1776902400000"},"provider_name":null}}
+[AI] Copilot ✓
+[AI] OpenRouter failed: API error: {"code":429,"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0","X-RateLimit-Reset":"1776902400000"},"provider_name":null}}
+[AI] OpenRouter failed: API error: {"code":429,"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0","X-RateLimit-Reset":"1776902400000"},"provider_name":null}}
+[AI] Copilot ✓
+[AI] OpenRouter failed: API error: {"code":429,"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0","X-RateLimit-Reset":"1776902400000"},"provider_name":null}}
+[AI] Copilot ✓
+[AI] Copilot ✓
+[AI] OpenRouter failed: API error: {"code":429,"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0","X-RateLimit-Reset":"1776902400000"},"provider_name":null}}
+[AI] Copilot ✓
+[AI] OpenRouter failed: API error: {"code":429,"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0","X-RateLimit-Reset":"1776902400000"},"provider_name":null}}
+[AI] Copilot ✓
+[AI] OpenRouter failed: API error: {"code":429,"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0","X-RateLimit-Reset":"1776902400000"},"provider_name":null}}
+[AI] Copilot ✓
+[AI] OpenRouter failed: API error: {"code":429,"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0","X-RateLimit-Reset":"1776902400000"},"provider_name":null}}
+[AI] Copilot ✓
+[AI] OpenRouter failed: API error: {"code":429,"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0","X-RateLimit-Reset":"1776902400000"},"provider_name":null}}
+[AI] OpenRouter failed: API error: {"code":429,"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0","X-RateLimit-Reset":"1776902400000"},"provider_name":null}}
+[AI] Copilot ✓
+[AI] OpenRouter failed: API error: {"code":429,"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0","X-RateLimit-Reset":"1776902400000"},"provider_name":null}}
+[AI] Copilot ✓
+[AI] Copilot ✓
+[DEBUG] Content-Length: 0
+[HTTP] GET request: GET / HTTP/1.1
+
+thread 'tokio-rt-worker' (19888) panicked at C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_json-1.0.149\src\value\index.rs:102:18:
+cannot access key "_type" in JSON string
+[DEBUG] Content-Length: 0
+[HTTP] GET request: GET / HTTP/1.1
+
+thread 'tokio-rt-worker' (19888) panicked at C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_json-1.0.149\src\value\index.rs:102:18:
+cannot access key "_type" in JSON string
+[AI] OpenRouter failed: API error: {"code":429,"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0","X-RateLimit-Reset":"1776902400000"},"provider_name":null}}
+[AI] Copilot ✓
+[DEBUG] Content-Length: 0
+[HTTP] GET request: GET / HTTP/1.1
+
+thread 'tokio-rt-worker' (17312) panicked at C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_json-1.0.149\src\value\index.rs:102:18:
+cannot access key "_type" in JSON string
+[DEBUG] Content-Length: 0
+[HTTP] GET request: GET / HTTP/1.1
+
+thread 'tokio-rt-worker' (19888) panicked at C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_json-1.0.149\src\value\index.rs:102:18:
+cannot access key "_type" in JSON string
+[DEBUG] Content-Length: 0
+[HTTP] GET request: GET / HTTP/1.1
+
+thread 'tokio-rt-worker' (17312) panicked at C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_json-1.0.149\src\value\index.rs:102:18:
+cannot access key "_type" in JSON string
+[DEBUG] Content-Length: 0
+[HTTP] GET request: GET / HTTP/1.1
+
+thread 'tokio-rt-worker' (17312) panicked at C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_json-1.0.149\src\value\index.rs:102:18:
+cannot access key "_type" in JSON string
+[DEBUG] Content-Length: 0
+[HTTP] GET request: GET / HTTP/1.1
+
+thread 'tokio-rt-worker' (17312) panicked at C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_json-1.0.149\src\value\index.rs:102:18:
+cannot access key "_type" in JSON string
+[AI] OpenRouter failed: API error: {"code":429,"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0","X-RateLimit-Reset":"1776902400000"},"provider_name":null}}
+[AI] Copilot ✓
+[AI] OpenRouter failed: API error: {"code":429,"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0","X-RateLimit-Reset":"1776902400000"},"provider_name":null}}
+[AI] Copilot ✓
+[DEBUG] Content-Length: 0
+[HTTP] GET request: GET / HTTP/1.1
+
+thread 'tokio-rt-worker' (17312) panicked at C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_json-1.0.149\src\value\index.rs:102:18:
+cannot access key "_type" in JSON string
+[DEBUG] Content-Length: 0
+[HTTP] GET request: GET / HTTP/1.1
+
+thread 'tokio-rt-worker' (17312) panicked at C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_json-1.0.149\src\value\index.rs:102:18:
+cannot access key "_type" in JSON string
+[DEBUG] Content-Length: 0
+[HTTP] GET request: GET / HTTP/1.1
+
+thread 'tokio-rt-worker' (17312) panicked at C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_json-1.0.149\src\value\index.rs:102:18:
+cannot access key "_type" in JSON string
+[DEBUG] Content-Length: 0
+[HTTP] GET request: GET / HTTP/1.1
+
+thread 'tokio-rt-worker' (13216) panicked at C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_json-1.0.149\src\value\index.rs:102:18:
+cannot access key "_type" in JSON string
+[AI] OpenRouter failed: API error: {"code":429,"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0","X-RateLimit-Reset":"1776902400000"},"provider_name":null}}
+[AI] Copilot ✓
+[DEBUG] Content-Length: 0
+[HTTP] GET request: GET / HTTP/1.1
+
+thread 'tokio-rt-worker' (17312) panicked at C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_json-1.0.149\src\value\index.rs:102:18:
+cannot access key "_type" in JSON string
+[DEBUG] Content-Length: 0
+[HTTP] GET request: GET / HTTP/1.1
+
+thread 'tokio-rt-worker' (11588) panicked at C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_json-1.0.149\src\value\index.rs:102:18:
+cannot access key "_type" in JSON string
+[AI] OpenRouter failed: API error: {"code":429,"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0","X-RateLimit-Reset":"1776902400000"},"provider_name":null}}
+[AI] OpenRouter failed: API error: {"code":429,"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0","X-RateLimit-Reset":"1776902400000"},"provider_name":null}}
+[AI] Copilot ✓
+[AI] Copilot ✓
+[DEBUG] Content-Length: 0
+[HTTP] GET request: GET / HTTP/1.1
+
+thread 'tokio-rt-worker' (19888) panicked at C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_json-1.0.149\src\value\index.rs:102:18:
+cannot access key "_type" in JSON string
+[AI] OpenRouter failed: API error: {"code":429,"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0","X-RateLimit-Reset":"1776902400000"},"provider_name":null}}
+[AI] Copilot ✓
+[AI] OpenRouter failed: API error: {"code":429,"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0","X-RateLimit-Reset":"1776902400000"},"provider_name":null}}
+[AI] Copilot ✓
+[AI] OpenRouter failed: API error: {"code":429,"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0","X-RateLimit-Reset":"1776902400000"},"provider_name":null}}
+[AI] Copilot ✓
+[DEBUG] Content-Length: 0
+[HTTP] OTHER request: 
+
+thread 'tokio-rt-worker' (17312) panicked at C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_json-1.0.149\src\value\index.rs:102:18:
+cannot access key "_type" in JSON string
+[DEBUG] Content-Length: 0
+[HTTP] GET request: GET / HTTP/1.1
+
+thread 'tokio-rt-worker' (17312) panicked at C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_json-1.0.149\src\value\index.rs:102:18:
+cannot access key "_type" in JSON string
+[DEBUG] Content-Length: 0
+[HTTP] GET request: GET / HTTP/1.1
+
+thread 'tokio-rt-worker' (17312) panicked at C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_json-1.0.149\src\value\index.rs:102:18:
+cannot access key "_type" in JSON string
+[AI] OpenRouter failed: API error: {"code":429,"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0","X-RateLimit-Reset":"1776902400000"},"provider_name":null}}
+[AI] OpenRouter failed: API error: {"code":429,"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0","X-RateLimit-Reset":"1776902400000"},"provider_name":null}}
+[AI] Copilot ✓
+[AI] Copilot ✓
+[AI] OpenRouter failed: API error: {"code":429,"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0","X-RateLimit-Reset":"1776902400000"},"provider_name":null}}
+[AI] Copilot ✓
+[AI] OpenRouter failed: API error: {"code":429,"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0","X-RateLimit-Reset":"1776902400000"},"provider_name":null}}
+[AI] Copilot ✓
+[DEBUG] Content-Length: 0
+[HTTP] GET request: GET / HTTP/1.1
+
+thread 'tokio-rt-worker' (11588) panicked at C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_json-1.0.149\src\value\index.rs:102:18:
+cannot access key "_type" in JSON string
+[DEBUG] Content-Length: 0
+[HTTP] OTHER request: 
+
+thread 'tokio-rt-worker' (17312) panicked at C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_json-1.0.149\src\value\index.rs:102:18:
+cannot access key "_type" in JSON string
+[DEBUG] Content-Length: 0
+[HTTP] OTHER request: 
+
+thread 'tokio-rt-worker' (17312) panicked at C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_json-1.0.149\src\value\index.rs:102:18:
+cannot access key "_type" in JSON string
+[DEBUG] Content-Length: 0
+[HTTP] GET request: GET / HTTP/1.1
+
+thread 'tokio-rt-worker' (13216) panicked at C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_json-1.0.149\src\value\index.rs:102:18:
+cannot access key "_type" in JSON string
+[DEBUG] Content-Length: 0
+[HTTP] GET request: GET / HTTP/1.1
+
+thread 'tokio-rt-worker' (13216) panicked at C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_json-1.0.149\src\value\index.rs:102:18:
+cannot access key "_type" in JSON string
+[DEBUG] Content-Length: 0
+[HTTP] GET request: GET / HTTP/1.1
+
+thread 'tokio-rt-worker' (13216) panicked at C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_json-1.0.149\src\value\index.rs:102:18:
+cannot access key "_type" in JSON string
+[DEBUG] Content-Length: 0
+[HTTP] GET request: GET / HTTP/1.1
+
+thread 'tokio-rt-worker' (13216) panicked at C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_json-1.0.149\src\value\index.rs:102:18:
+cannot access key "_type" in JSON string
+[DEBUG] Content-Length: 0
+[HTTP] GET request: GET / HTTP/1.1
+
+thread 'tokio-rt-worker' (13216) panicked at C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_json-1.0.149\src\value\index.rs:102:18:
+cannot access key "_type" in JSON string
+[DEBUG] Content-Length: 0
+[HTTP] GET request: GET / HTTP/1.1
+
+thread 'tokio-rt-worker' (13216) panicked at C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_json-1.0.149\src\value\index.rs:102:18:
+cannot access key "_type" in JSON string
+[DEBUG] Content-Length: 0
+[HTTP] GET request: GET / HTTP/1.1
+
+thread 'tokio-rt-worker' (13216) panicked at C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_json-1.0.149\src\value\index.rs:102:18:
+cannot access key "_type" in JSON string
+[DEBUG] Content-Length: 0
+[HTTP] GET request: GET / HTTP/1.1
+
+thread 'tokio-rt-worker' (13216) panicked at C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_json-1.0.149\src\value\index.rs:102:18:
+cannot access key "_type" in JSON string
+[DEBUG] Content-Length: 0
+[HTTP] GET request: GET / HTTP/1.1
+
+thread 'tokio-rt-worker' (17312) panicked at C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_json-1.0.149\src\value\index.rs:102:18:
+cannot access key "_type" in JSON string
+[DEBUG] Content-Length: 0
+[HTTP] GET request: GET / HTTP/1.1
+
+thread 'tokio-rt-worker' (13216) panicked at C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_json-1.0.149\src\value\index.rs:102:18:
+cannot access key "_type" in JSON string
+[DEBUG] Content-Length: 0
+[HTTP] GET request: GET / HTTP/1.1
+
+thread 'tokio-rt-worker' (13216) panicked at C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_json-1.0.149\src\value\index.rs:102:18:
+cannot access key "_type" in JSON string
+[DEBUG] Content-Length: 0
+[HTTP] GET request: GET / HTTP/1.1
+
+thread 'tokio-rt-worker' (13216) panicked at C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_json-1.0.149\src\value\index.rs:102:18:
+cannot access key "_type" in JSON string
+[DEBUG] Content-Length: 0
+[HTTP] GET request: GET / HTTP/1.1
+
+thread 'tokio-rt-worker' (17312) panicked at C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_json-1.0.149\src\value\index.rs:102:18:
+cannot access key "_type" in JSON string
+[AI] OpenRouter failed: API error: {"code":429,"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0","X-RateLimit-Reset":"1776902400000"},"provider_name":null}}
+[AI] Copilot ✓
+[DEBUG] Content-Length: 0
+[HTTP] GET request: GET / HTTP/1.1
+
+thread 'tokio-rt-worker' (19888) panicked at C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_json-1.0.149\src\value\index.rs:102:18:
+cannot access key "_type" in JSON string
+[DEBUG] Content-Length: 0
+[HTTP] GET request: GET / HTTP/1.1
+
+thread 'tokio-rt-worker' (19888) panicked at C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_json-1.0.149\src\value\index.rs:102:18:
+cannot access key "_type" in JSON string
+[DEBUG] Content-Length: 0
+[HTTP] GET request: GET / HTTP/1.1
+
+thread 'tokio-rt-worker' (17312) panicked at C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_json-1.0.149\src\value\index.rs:102:18:
+cannot access key "_type" in JSON string
+[DEBUG] Content-Length: 0
+[HTTP] GET request: GET / HTTP/1.1
+
+thread 'tokio-rt-worker' (19888) panicked at C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_json-1.0.149\src\value\index.rs:102:18:
+cannot access key "_type" in JSON string
+[AI] OpenRouter failed: API error: {"code":429,"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0","X-RateLimit-Reset":"1776902400000"},"provider_name":null}}
+[AI] Copilot ✓
+[AI] OpenRouter failed: API error: {"code":429,"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0","X-RateLimit-Reset":"1776902400000"},"provider_name":null}}
+[AI] Copilot ✓
+[AI] OpenRouter failed: API error: {"code":429,"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0","X-RateLimit-Reset":"1776902400000"},"provider_name":null}}
+[AI] OpenRouter failed: API error: {"code":429,"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0","X-RateLimit-Reset":"1776902400000"},"provider_name":null}}
+[AI] OpenRouter failed: API error: {"code":429,"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0","X-RateLimit-Reset":"1776902400000"},"provider_name":null}}
+[AI] Copilot ✓
+[AI] Copilot ✓
+[AI] Copilot ✓
+[AI] OpenRouter failed: API error: {"code":429,"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0","X-RateLimit-Reset":"1776902400000"},"provider_name":null}}
+[AI] Copilot ✓
+[DEBUG] Content-Length: 0
+[HTTP] GET request: GET / HTTP/1.1
+
+thread 'tokio-rt-worker' (19888) panicked at C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_json-1.0.149\src\value\index.rs:102:18:
+cannot access key "_type" in JSON string
+[AI] OpenRouter failed: API error: {"code":429,"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0","X-RateLimit-Reset":"1776902400000"},"provider_name":null}}
+[AI] Copilot ✓
+[AI] OpenRouter failed: API error: {"code":429,"message":"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day","metadata":{"headers":{"X-RateLimit-Limit":"50","X-RateLimit-Remaining":"0","X-RateLimit-Reset":"1776902400000"},"provider_name":null}}
+[AI] Copilot ✓

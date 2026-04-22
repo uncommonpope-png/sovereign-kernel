@@ -3232,10 +3232,12 @@ setInterval(function() {{
                 );
 
                 let response = format!(
-                    "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: *\r\n\r\n{}",
                     html.len(), html
                 );
-                let _ = socket.write_all(response.as_bytes()).await;
+                let bytes = response.into_bytes();
+                let _ = socket.write_all(&bytes).await;
+                let _ = socket.shutdown().await;
             });
         }
     }
