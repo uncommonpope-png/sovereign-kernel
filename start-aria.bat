@@ -1,14 +1,23 @@
 @echo off
-title Aria — Grand Soul Kernel
+REM ARIA Kernel Startup Script
+
 cd /d "C:\soul\plt-press\grand-soul-kernel-original"
-echo Killing old processes...
-for /f "tokens=5" %%a in ('netstat -ano ^| findstr :7777 ^| findstr LISTENING') do taskkill /PID %%a /F 2>nul
-for /f "tokens=1" %%a in ('tasklist ^| findstr grand-soul') do taskkill /IM %%a /F 2>nul
-echo Starting Aria...
-start "Aria" cmd /k "C:\soul\plt-press\grand-soul-kernel-original\target\release\grand-soul-kernel.exe"
+
+echo Starting ARIA (Queen)...
+start /b target\release\grand-soul-kernel.exe
+
+REM Wait for port 7777
 timeout /t 3 /nobreak >nul
-start http://localhost:7777/
-echo Aria is cycling. Journal should open in your browser.
-echo.
-echo Say hello: POST a message to Craig at http://localhost:7777/message
-echo Or add to craig_messages.json
+
+REM Verify
+netstat -ano | findstr ":7777.*LISTENING" >nul
+if %errorlevel% neq 0 (
+    echo ERROR: ARIA failed to start
+    exit /b 1
+)
+
+echo ARIA running on port 7777
+echo   - /healthz health check
+echo   - /keys/status API keys
+echo   - /chat history
+exit /b 0

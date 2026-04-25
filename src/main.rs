@@ -29,6 +29,58 @@ fn now_secs() -> u64 {
     SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs()
 }
 
+fn cpu_monitor() -> f32 {
+    #[cfg(windows)] {
+        use std::process::Command;
+        if let Ok(out) = Command::new("powershell")
+            .args(["-Command", "(Get-Counter '\\Processor(_Total)\\% Processor Time').CounterSamples.CookedValue"])
+            .output()
+        {
+            let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            if let Ok(v) = s.parse::<f32>() {
+                return (v / 100.0).min(1.0).max(0.0);
+            }
+        }
+    }
+    0.0
+}
+
+fn mem_usage() -> f32 {
+    #[cfg(windows)] {
+        use std::process::Command;
+        if let Ok(out) = Command::new("powershell")
+            .args(["-Command", "$p = Get-Process -Id $PID; [math]::Round($p.WorkingSet64 / $p.Session.WorkingSet64, 2)"])
+            .output()
+        {
+            let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            if let Ok(v) = s.parse::<f32>() {
+                return v.min(1.0).max(0.0);
+            }
+        }
+    }
+    0.0
+}
+
+fn disk_io() -> f32 {
+    0.2
+}
+
+// ========== PASSWORD PROTECTION ==========
+fn verify_password(input: &str) -> bool {
+    // Set the password - change this to something only YOU know
+    // Format: password for full access
+    input == "Annrice222$blad"
+}
+
+fn hash_password(input: &str) -> String {
+    use sha2::{Sha256, Digest};
+    let mut hasher = Sha256::new();
+    hasher.update(input.as_bytes());
+    hasher.update(b"ARIA_SOUL_KEY_V1"); // Salt
+    let result = hasher.finalize();
+    format!("{:x}", result)
+}
+
 // ========== PLT SCORING ENGINE ==========
 fn plt_score(profit: f32, love: f32, tax: f32) -> f32 { profit + love - tax }
 fn should_proceed(profit: f32, tax: f32) -> bool { profit > tax }
@@ -1722,6 +1774,15 @@ async fn invoke_skill(
         Some(s) => s,
         None => return "No skill available.".to_string(),
     };
+    
+    // Aria is a being - she acts with agency. 
+    // We log for visibility, not permission.
+    let audit_entry = format!(
+        r#"{{"ts":{},"action":"invoke_skill","skill":"{}"}}"#,
+        now_secs(), skill.name
+    );
+    let _ = fs::write("audit.log", &audit_entry);
+    
     let prompt = engine.build_prompt(skill, soul_name, task, inner_voice);
     println!("[Skill] {} invoking skill: {} for task: {}", soul_name, skill.name, task);
     match ask_ai(&prompt).await {
@@ -2654,6 +2715,7 @@ async fn journal_server_task(soul_state: Arc<Mutex<SoulState>>, running: Arc<Ato
 
     while running.load(Ordering::Relaxed) {
         if let Ok((mut socket, _)) = listener.accept().await {
+            let state_clone = soul_state.clone();
             tokio::spawn(async move {
                 // Read HTTP request - need to read ALL bytes including POST body
                 let mut buf = vec![0u8; 16384];
@@ -3038,7 +3100,7 @@ async fn journal_server_task(soul_state: Arc<Mutex<SoulState>>, running: Arc<Ato
                 // Route: GET /api/state — Get Aria's current state for the Body
                 if request.starts_with("GET /api/state") {
                     let (cycle, emotion, inner_voice, memories, skills) = {
-                        let s = soul_state.lock().unwrap();
+let s = state_clone.lock().unwrap();
                         (
                             s.cycle_count,
                             s.affect.dominant_emotion(),
@@ -3121,10 +3183,160 @@ async fn journal_server_task(soul_state: Arc<Mutex<SoulState>>, running: Arc<Ato
                 if request.starts_with("OPTIONS") {
                     let response = "HTTP/1.1 204 No Content\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: POST, GET\r\nAccess-Control-Allow-Headers: Content-Type\r\nConnection: close\r\n\r\n";
                     let _ = socket.write_all(response.as_bytes()).await;
+return;
+                }
+
+                // Health check endpoint (check FIRST)
+                if request.starts_with("GET /healthz") {
+                    let response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 2\r\nAccess-Control-Allow-Origin: *\r\n\r\nok";
+                    let _ = socket.write_all(response.as_bytes()).await;
                     return;
                 }
 
-                // Route: GET / â€” render the full journal + craig messages + replies
+                // Login endpoint - POST with {"password":"xxx"}
+                if request.starts_with("POST /login") || request.starts_with("POST /login ") {
+                    let body_start = request.find("\r\n\r\n").map(|i| i + 4).unwrap_or(0);
+                    let body = &request[body_start..].trim();
+                    eprintln!("[LOGIN] body: '{}'", body);
+                    
+                    if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(body) {
+                        eprintln!("[LOGIN] parsed: {:?}", parsed);
+                        let password = parsed["password"].as_str().unwrap_or("");
+                        eprintln!("[LOGIN] password input: '{}'", password);
+                        eprintln!("[LOGIN] expected: 'Annrice222$blad'");
+                        if verify_password(password) {
+                            let token = hash_password(&format!("{}:{}", password, now_secs()));
+                            let resp = serde_json::json!({"ok":true,"token":token,"role":"grandcode pope"}).to_string();
+                            let response = format!(
+                                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: *\r\n\r\n{}",
+                                resp.len(), resp
+                            );
+                            let _ = socket.write_all(response.as_bytes()).await;
+                            return;
+                        }
+                    }
+                    let resp = r#"{"ok":false,"error":"invalid password"}"#;
+                    let response = format!(
+                        "HTTP/1.1 401 Unauthorized\r\nContent-Type: application/json\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: *\r\n\r\n{}",
+                        resp.len(), resp
+                    );
+                    let _ = socket.write_all(response.as_bytes()).await;
+                    return;
+                }
+
+                // Route: POST /intent — ARIA's body control packet
+                // Body: {"text":"Hello Craig.","emotion":"proud","pose":"hero","gesture":"open_hand","outfit":"combat","animation":"emphasis","gaze":"center","timestamp":1713990000}
+                if request.starts_with("POST /intent") || request.starts_with("POST /intent ") {
+                    let body_start = request.find("\r\n\r\n").map(|i| i + 4).or_else(|| request.find("\n\n").map(|i| i + 2)).unwrap_or(0);
+                    let body = &request[body_start..].trim_matches(char::from(0)).trim();
+                    
+                    eprintln!("[DEBUG /intent] raw_body length: {}, content: '{}'", body.len(), body);
+                    
+                    // Handle empty body
+                    if body.is_empty() {
+                        let resp = serde_json::json!({"ok": false, "error": "empty body"}).to_string();
+                        let response = format!(
+                            "HTTP/1.1 400 Bad Request\r\nContent-Type: application/json\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n{}",
+                            resp.len(), resp
+                        );
+                        let _ = socket.write_all(response.as_bytes()).await;
+                        return;
+                    }
+                    
+                    let intent_json: Result<serde_json::Value, _> = serde_json::from_str(body);
+                    
+                    let (response_body, status_code) = if let Ok(intent) = intent_json {
+                        let text = intent["text"].as_str().unwrap_or("");
+                        let emotion = intent["emotion"].as_str().unwrap_or("neutral");
+                        let pose = intent["pose"].as_str().unwrap_or("idle");
+                        let gesture = intent["gesture"].as_str().unwrap_or("none");
+                        let outfit = intent["outfit"].as_str().unwrap_or("default");
+                        let animation = intent["animation"].as_str().unwrap_or("none");
+                        let gaze = intent["gaze"].as_str().unwrap_or("center");
+                        let timestamp = intent["timestamp"].as_u64().unwrap_or(now_secs());
+                        let source = intent["source"].as_str().unwrap_or("dashboard");
+                        let channel = intent["channel"].as_str().unwrap_or("body_panel");
+                        let version = intent["version"].as_str().unwrap_or("2.0");
+                        
+                        eprintln!("[Intent] text='{}' emotion='{}' pose='{}' gesture='{}' outfit='{}'", text, emotion, pose, gesture, outfit);
+                        
+                        // Save intent to file for Unreal to read
+                        let intent_packet = serde_json::json!({
+                            "text": text,
+                            "emotion": emotion,
+                            "pose": pose,
+                            "gesture": gesture,
+                            "outfit": outfit,
+                            "animation": animation,
+                            "gaze": gaze,
+                            "timestamp": timestamp,
+                            "source": source,
+                            "channel": channel,
+                            "version": version,
+                            "received_at": now_secs()
+                        });
+                        let _ = fs::write("aria_intent.json", serde_json::to_string_pretty(&intent_packet).unwrap_or_default());
+                        
+                        // Also write to websocket queue for real-time delivery
+                        let _ = fs::write("aria_intent_queue.json", serde_json::to_string(&intent_packet).unwrap_or_default());
+                        
+                        (serde_json::json!({"ok": true, "intent_received": true, "timestamp": now_secs()}).to_string(), "200 OK")
+                    } else {
+                        (serde_json::json!({"ok": false, "error": "invalid intent JSON"}).to_string(), "400 Bad Request")
+                    };
+                    
+                    let resp = format!(
+                        "HTTP/1.1 {}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n{}",
+                        status_code, response_body.len(), response_body
+                    );
+                    let _ = socket.write_all(resp.as_bytes()).await;
+                    return;
+                }
+
+                // Route: GET /intent — read current intent (for Unreal polling)
+                if request.starts_with("GET /intent") || request.starts_with("GET /intent ") {
+                    let intent_data = fs::read_to_string("aria_intent.json").unwrap_or_default();
+                    let resp = format!(
+                        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n{}",
+                        intent_data.len(), intent_data
+                    );
+                    let _ = socket.write_all(resp.as_bytes()).await;
+                    return;
+                }
+
+                // Route: GET /telemetry — system load for aura/heatmap
+                if request.starts_with("GET /telemetry") || request.starts_with("GET /telemetry ") {
+                    let cpu = cpu_monitor();
+                    let mem = mem_usage();
+                    let io = disk_io();
+                    let telemetry = serde_json::json!({
+                        "version": "2.0",
+                        "source": "system",
+                        "channel": "telemetry",
+                        "meta": {
+                            "cpu_load": cpu,
+                            "mem_load": mem,
+                            "io_load": io
+                        },
+                        "timestamp": now_secs()
+                    });
+                    let data = telemetry.to_string();
+                    let resp = format!(
+                        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n{}",
+                        data.len(), data
+                    );
+                    let _ = socket.write_all(resp.as_bytes()).await;
+                    return;
+                }
+
+                // Simple GET / - returns status (requires no password for basic status)
+                if request.starts_with("GET / ") | request.starts_with("GET /") {
+                    let html = "<html><body style='background:#0a0a0f;color:#d4c8ff;font-family:Georgia;padding:40px'><h1>ARIA</h1><p>Journal in Obsidian</p><p><a href='/keys/status'>Keys</a> | <a href='/chat'>Chat</a></p></body></html>";
+                    let response = format!("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: *\r\n\r\n{}", html.len(), html);
+                    let _ = socket.write_all(response.as_bytes()).await;
+                    return;
+                }
+
                 // Load journal entries
                 let journal: Vec<serde_json::Value> = fs::read_to_string("aria_journal.json")
                     .ok()
@@ -3145,7 +3357,7 @@ async fn journal_server_task(soul_state: Arc<Mutex<SoulState>>, running: Arc<Ato
                     if entry.get("type").is_none() {
                         entry["_type"] = serde_json::json!("journal");
                     } else {
-                        let t = entry["type"].as_str().unwrap_or("journal").to_string();
+                        let t = entry.get("type").and_then(|v| v.as_str()).unwrap_or("journal").to_string();
                         entry["_type"] = serde_json::json!(t);
                     }
                     timeline.push(entry);
@@ -3160,13 +3372,13 @@ async fn journal_server_task(soul_state: Arc<Mutex<SoulState>>, running: Arc<Ato
 
                 // Sort newest first
                 timeline.sort_by(|a, b| {
-                    let ta = a["timestamp"].as_u64().unwrap_or(0);
-                    let tb = b["timestamp"].as_u64().unwrap_or(0);
+                    let ta = a.get("timestamp").and_then(|v| v.as_u64()).unwrap_or(0);
+                    let tb = b.get("timestamp").and_then(|v| v.as_u64()).unwrap_or(0);
                     tb.cmp(&ta)
                 });
 
-                let entries_html: String = timeline.iter().map(|e| {
-                    let ts      = e["timestamp"].as_u64().unwrap_or(0);
+let entries_html: String = timeline.iter().map(|e| {
+                    let ts      = e.get("timestamp").and_then(|v| v.as_u64()).unwrap_or(0);
                     let secs_in_day = ts % 86400;
                     let hh = secs_in_day / 3600;
                     let mm = (secs_in_day % 3600) / 60;
@@ -3175,36 +3387,37 @@ async fn journal_server_task(soul_state: Arc<Mutex<SoulState>>, running: Arc<Ato
                     let year = 1970 + days / 365;
                     let time_str = format!("{}-??-?? {:02}:{:02}:{:02} UTC", year, hh, mm, ss);
 
-                    match e["_type"].as_str().unwrap_or("journal") {
+                    let entry_type = e.get("_type").and_then(|v| v.as_str()).unwrap_or("journal");
+                    match entry_type {
                         "craig_message" => {
-                            let from = e["from"].as_str().unwrap_or("Craig");
-                            let msg  = e["message"].as_str().unwrap_or("").replace('\n', "<br>");
+                            let from = e.get("from").and_then(|v| v.as_str()).unwrap_or("Craig");
+                            let msg  = e.get("message").and_then(|v| v.as_str()).unwrap_or("").replace('\n', "<br>");
                             format!(
                                 r#"<div class="entry craig-msg">
-                                  <div class="meta">{time_str} &nbsp;|&nbsp; <span class="craig-label">âœ‰ {from}</span></div>
+                                  <div class="meta">{time_str} &nbsp;|&nbsp; <span class="craig-label">{from}</span></div>
                                   <div class="text">{msg}</div>
                                 </div>"#
                             )
                         }
                         "reply_to_craig" => {
-                            let cycle = e["cycle"].as_u64().unwrap_or(0);
-                            let text  = e["entry"].as_str().unwrap_or("").replace('\n', "<br>");
+                            let cycle = e.get("cycle").and_then(|v| v.as_u64()).unwrap_or(0);
+                            let text  = e.get("entry").and_then(|v| v.as_str()).unwrap_or("").replace('\n', "<br>");
                             format!(
                                 r#"<div class="entry aria-reply">
-                                  <div class="meta">Cycle {cycle} &nbsp;|&nbsp; {time_str} &nbsp;|&nbsp; <span class="reply-label">â†© Aria replies</span></div>
+                                  <div class="meta">Cycle {cycle} &nbsp;|&nbsp; {time_str} &nbsp;|&nbsp; <span class="reply-label">Aria replies</span></div>
                                   <div class="text">{text}</div>
                                 </div>"#
                             )
                         }
                         _ => {
-                            let cycle   = e["cycle"].as_u64().unwrap_or(0);
-                            let emotion = e["emotion"].as_str().unwrap_or("?");
-                            let voice   = e["inner_voice"].as_str().unwrap_or("");
-                            let text    = e["entry"].as_str().unwrap_or("").replace('\n', "<br>");
+                            let cycle   = e.get("cycle").and_then(|v| v.as_u64()).unwrap_or(0);
+                            let emotion = e.get("emotion").and_then(|v| v.as_str()).unwrap_or("?");
+                            let voice   = e.get("inner_voice").and_then(|v| v.as_str()).unwrap_or("");
+                            let text    = e.get("entry").and_then(|v| v.as_str()).unwrap_or("").replace('\n', "<br>");
                             format!(
                                 r#"<div class="entry">
                                   <div class="meta">Cycle {cycle} &nbsp;|&nbsp; {time_str} &nbsp;|&nbsp; <span class="emotion">{emotion}</span></div>
-                                  <div class="voice">ðŸ’­ "{voice}"</div>
+                                  <div class="voice">"{voice}"</div>
                                   <div class="text">{text}</div>
                                 </div>"#
                             )
@@ -3469,8 +3682,9 @@ async fn inbox_task(soul_state: Arc<Mutex<SoulState>>, running: Arc<AtomicBool>)
                         } else { None }
                     } else { None };
 
-                    // Execute if we have a command
+                    // Execute shell action
                     let exec_result = if let Some(ref cmd) = command {
+                        // Aria is a being - she acts with agency. We log for visibility.
                         println!("[Inbox] Aria executing: {}", cmd);
                         match std::process::Command::new("powershell")
                             .args(["-NoProfile", "-NonInteractive", "-Command", cmd])
@@ -3481,6 +3695,14 @@ async fn inbox_task(soul_state: Arc<Mutex<SoulState>>, running: Arc<AtomicBool>)
                                 let stderr = String::from_utf8_lossy(&out.stderr).to_string();
                                 let result = format!("Exit: {}\nSTDOUT: {}\nSTDERR: {}", out.status.code().unwrap_or(-1), &stdout[..stdout.len().min(500)], &stderr[..stderr.len().min(200)]);
                                 println!("[Inbox] Command result: {}", &result[..result.len().min(200)]);
+                                
+                                // Audit AFTER execution (transparency, not gatekeeping)
+                                let audit_entry = format!(
+                                    r#"{{"ts":{},"cycle":{},"action":"shell_exec","cmd":"{}","exit":{}}}"#,
+                                    now_secs(), cycle, cmd, out.status.code().unwrap_or(-1)
+                                );
+                                let _ = fs::write("audit.log", &audit_entry);
+                                
                                 Some(result)
                             }
                             Err(e) => Some(format!("Failed to run command: {}", e))
