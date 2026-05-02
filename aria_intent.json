@@ -1,11 +1,14 @@
 {
-  "version": "2.0",
-  "chamber": "wisdom",
-  "stance": "idle_relaxed",
-  "gesture": "point_forward",
-  "narrative_mode": "teacher",
-  "emotion": "calm",
+  "animation": "none",
+  "channel": "body_panel",
+  "emotion": "neutral",
+  "gaze": "center",
+  "gesture": "none",
+  "outfit": "default",
   "pose": "idle",
-  "source": "test",
-  "channel": "system"
+  "received_at": 1777549932,
+  "source": "dashboard",
+  "text": "",
+  "timestamp": 1777549930,
+  "version": "2.0"
 }

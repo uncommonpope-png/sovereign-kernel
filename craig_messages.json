@@ -151,5 +151,35 @@
     "message": "are u alive",
     "read": false,
     "timestamp": 1777000061
+  },
+  {
+    "from": "User",
+    "message": "hi",
+    "read": false,
+    "timestamp": 1777549816
+  },
+  {
+    "from": "User",
+    "message": "wat are u",
+    "read": false,
+    "timestamp": 1777549824
+  },
+  {
+    "from": "Craig",
+    "message": "hi",
+    "read": false,
+    "timestamp": 1777549916
+  },
+  {
+    "from": "Craig",
+    "message": "hi",
+    "read": false,
+    "timestamp": 1777549916
+  },
+  {
+    "from": "Craig",
+    "message": "hi",
+    "read": false,
+    "timestamp": 1777549920
   }
 ]
