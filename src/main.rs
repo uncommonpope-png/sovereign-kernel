@@ -330,7 +330,7 @@ struct OllamaResponse {
 async fn ask_ollama(prompt: &str) -> Result<String> {
     let client = reqwest::Client::new();
     let req = OllamaRequest {
-        model: "qwen2.5-coder:7b".to_string(),
+        model: "deepseek-r1:latest".to_string(),  // Using installed model
         prompt: prompt.to_string(),
         stream: false,
     };
@@ -743,9 +743,18 @@ async fn ask_gemini(prompt: &str) -> Result<String> {
 // (old struct-based Gemini code removed)
 
 async fn ask_ai(prompt: &str) -> Result<String> {
-    // AI Fallback Chain â€” Keys are now managed via /keys endpoint (securely stored in env vars)
+    // AI Fallback Chain — Keys are now managed via /keys endpoint (securely stored in env vars)
     // Providers are tried in order until one works. Failed keys are skipped.
     // Aria can self-heal: use POST /keys with new keys to fix the chain.
+    
+    // ========== OLLAMA PRIMARY ==========
+    // Try local Ollama first (no API keys needed, fastest)
+    match ask_ollama(prompt).await {
+        Ok(r) if !r.is_empty() => { eprintln!("[AI] Ollama (deepseek-r1) ✓"); return Ok(r); }
+        Err(e) => { eprintln!("[AI] Ollama failed: {}, trying next provider...", e); }
+        _ => {}
+    }
+    // ========== END OLLAMA ==========
     
     // Skip providers with revoked/decommissioned keys - check env vars first
     let has_openrouter = !std::env::var("OPENROUTER_API_KEY").unwrap_or_default().is_empty();
