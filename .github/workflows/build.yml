@@ -1,0 +1,19 @@
+name: Build sovereign-kernel
+
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aria-kernel
+          path: target/release/grand-soul-kernel.exe
+          retention-days: 7
