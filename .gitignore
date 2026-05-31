@@ -1,9 +1,1 @@
-target/
-.env
-entity_state.json
-*.key
-*.pem
-plt_ledger.json
-task_queue.json
-journal.md
-improvements/
+﻿
