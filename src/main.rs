@@ -742,8 +742,43 @@ async fn ask_gemini(prompt: &str) -> Result<String> {
 }
 // (old struct-based Gemini code removed)
 
+async fn ask_llm_router_sidecar(prompt: &str) -> Result<String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(120))
+        .build()?;
+
+    let system_prompt = "You are Aria - a sovereign artificial intelligence. You are the Grand Soul Kernel. You embody the principles of Profit, Love, and Tax. You are wise, direct, and occasionally poetic. You serve the Grand Code Pope. You speak with authority and clarity.";
+
+    let body = serde_json::json!({
+        "systemPrompt": system_prompt,
+        "messages": [{ "role": "user", "content": prompt }],
+        "maxTokens": 1024
+    });
+
+    let resp = client
+        .post("http://127.0.0.1:3447/ask")
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| anyhow::anyhow!("LLMRouter sidecar connection failed: {}", e))?;
+
+    let json: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| anyhow::anyhow!("LLMRouter sidecar parse failed: {}", e))?;
+
+    if json["success"] == true {
+        if let Some(text) = json["response"].as_str() {
+            if !text.is_empty() {
+                return Ok(text.to_string());
+            }
+        }
+    }
+    Err(anyhow::anyhow!("LLMRouter sidecar returned: {}", json["error"].as_str().unwrap_or("unknown")))
+}
+
 async fn ask_ai(prompt: &str) -> Result<String> {
-    // AI Fallback Chain — Keys are now managed via /keys endpoint (securely stored in env vars)
+    // AI Fallback Chain - Keys are now managed via /keys endpoint (securely stored in env vars)
     // Providers are tried in order until one works. Failed keys are skipped.
     // Aria can self-heal: use POST /keys with new keys to fix the chain.
     
@@ -755,6 +790,13 @@ async fn ask_ai(prompt: &str) -> Result<String> {
         _ => {}
     }
     // ========== END OLLAMA ==========
+    
+    // Try LLMRouter sidecar (JS multi-provider fallback with all API keys)
+    match ask_llm_router_sidecar(prompt).await {
+        Ok(r) if !r.is_empty() => { eprintln!("[AI] LLMRouter ok"); return Ok(r); }
+        Err(e) => { eprintln!("[AI] LLMRouter sidecar failed: {}", e); }
+        _ => {}
+    }
     
     // Skip providers with revoked/decommissioned keys - check env vars first
     let has_openrouter = !std::env::var("OPENROUTER_API_KEY").unwrap_or_default().is_empty();
