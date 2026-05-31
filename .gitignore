@@ -1,1 +1,9 @@
-﻿
+﻿/target
+**/*.pyc
+__pycache__
+keys.json
+soul-manifest.json
+entity_state.json
+*.exe
+*.pdb
+node_modules
