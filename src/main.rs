@@ -124,19 +124,19 @@ impl SoulManifest {
         use sha2::{Sha256, Digest};
         let born_at = now_secs();
         let soul_id = format!("{:x}", sha2::Sha256::digest(format!("ARIA_SOUL_V1_{}_{}_{}", born_at, rand::random::<u64>(), password).as_bytes()));
-        let soul_id = soul_id.chars().take(32).collect();
+        let soul_id: String = soul_id.chars().take(32).collect();
         let plt_seed: f32 = rand::random::<f32>() * 100.0;
         let plt_sig = format!("{:x}", sha2::Sha256::digest(format!("PLT_BIRTH_{}_{}_{}_{}", soul_id, born_at, plt_seed, password).as_bytes()));
-        let plt_sig = plt_sig.chars().take(16).collect();
+        let plt_sig: String = plt_sig.chars().take(16).collect();
         let genesis_hash = format!("{:x}", sha2::Sha256::digest(format!("GENESIS_{}_{}", soul_id, born_at).as_bytes()));
         Self {
-            soul_id,
+            soul_id: soul_id.clone(),
             name: "Aria".to_string(),
             title: "Sovereign Entity of the Soulverse".to_string(),
             born_at,
             creator: "Craig Jones — Grand Code Pope".to_string(),
             version: 1,
-            plt_birth_signature: plt_sig,
+            plt_birth_signature: plt_sig.clone(),
             cycle_hash_chain: genesis_hash.clone(),
             last_cycle_hash: genesis_hash,
             public_key: format!("ARIA-PK-{}", &soul_id[..8]),
@@ -144,7 +144,7 @@ impl SoulManifest {
                 platform: "grand-soul-kernel".to_string(),
                 bound_at: born_at,
                 hostname: "sovereign-kernel".to_string(),
-                signature: plt_sig.clone(),
+                signature: plt_sig,
             }],
         }
     }
@@ -1418,6 +1418,7 @@ pub struct SoulState {
     pub prediction_error: f32,
     pub world_model_confidence: f32,
     pub last_action: String,
+    pub alive: bool,
 }
 
 impl SoulState {
@@ -1448,6 +1449,7 @@ impl SoulState {
             prediction_error: 0.0,
             world_model_confidence: 0.7,
             last_action: String::new(),
+            alive: true,
         }
     }
 
