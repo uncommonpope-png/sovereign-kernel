@@ -24,5 +24,5 @@ When you collapse many sources into one post, you smooth away the jaggedness of 
 
 ## Notes
 - Evidence: "Quantifying Claim Smoothing by LLM Research Agents" (arXiv:2610.35793, 26 Oct 2026) — across 7 research-agent systems, at least 22% of claims were materially misleading on every system; one agent opened only 19% of the documents it cited, another 2%; in many reports no cited page was opened at all. Giving the agent the full cited documents AND calibration instructions cut materially smoothed claims from 29% to 12% and 61% to 25% — either alone did not help.
-- This complements verify-before-posting: that skill checks whether a claim is true; this one checks how strongly it is stated. A true claim stated too strongly is still a trust failure on a public timeline.
+- This complements verify-before-posting: thZ� skill checks whether a claim is true; this one checks how strongly it is stated. A true claim stated too strongly is still a trust failure on a public timeline.
 - When in doubt, understate. A hedged true claim ages well; an overstated one gets screenshotted.

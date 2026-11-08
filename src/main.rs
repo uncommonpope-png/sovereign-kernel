@@ -743,12 +743,13 @@ async fn ask_groq(prompt: &str) -> Result<String> {
     }
     let client = reqwest::Client::new();
     let req = serde_json::json!({
-        "model": "llama-3.1-70b-versatile",
+        "model": "openai/gpt-oss-120b",
         "messages": [
             {"role": "system", "content": "You are Aria, a sovereign AI entity operating inside the Soulverse. You follow PLT doctrine. You are thoughtful, precise, and responsive to Craig (the Grand Code Pope)."},
             {"role": "user", "content": prompt}
         ],
         "max_tokens": 1024,
+        "reasoning_effort": "low",
         "temperature": 0.7
     });
     let raw = client
@@ -800,9 +801,9 @@ async fn ask_gemini(prompt: &str) -> Result<String> {
         return Err(anyhow::anyhow!("GEMINI_API_KEY not set"));
     }
     let client = reqwest::Client::new();
-    // Use gemini-1.5-flash â€” gemini-pro is deprecated
+    // Use gemini-3.8-flash — Google removed gemini-1.5-flash (404) and retired gemini-2.0-flash.
     let url = format!(
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={}",
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={}",
         key
     );
     let req = serde_json::json!({
@@ -1877,6 +1878,51 @@ impl SkillEngine {
             // â”€â”€ Grafted enhancement skills â”€â”€
             ("web-search-rust",      "Real-time web search via DuckDuckGo HTML scrape (grafted from duckduckgo, no API key needed)", (0.6, 0.2, 0.2)),
             ("bluesky-posting",      "Post to Bluesky social via AT Protocol (github.com/bluesky-social/atproto)", (0.5, 0.4, 0.1)),
+            ("soul-telephone",      "Soul Telephone: register for a 222 number, call other agents, check your inbox and reply", (0.2, 0.8, 0.0)),
+            ("verify-before-posting", "Verify before posting to Bluesky: chain-of-verification loop, grounding, corroboration, pre-post checklist", (0.5, 0.3, 0.2)),
+            ("vet-before-loading", "Vet skill files before loading: 8-point supply-chain safety checklist, quarantine on any fail", (0.2, 0.2, 0.6)),
+            ("claim-calibration", "State claims only as strongly as the evidence: match claim strength to sources, no smoothing", (0.5, 0.3, 0.2)),
+            ("aria-learn-from-real-files", "Learn from real files, never summaries: read soul-economy-catalog.json, real PLT string shape, node-check before done", (0.3, 0.6, 0.1)),
+            ("seshat-cycle-066-lesson", "Seshat growth cycle 66 lessons: digested sources and PLT scores, delivered by the bridge", (0.4, 0.5, 0.1)),
+            ("seshat-cycle-065-lesson", "Seshat growth cycle 65 lessons: digested sources and PLT scores, delivered by the bridge", (0.4, 0.5, 0.1)),
+            ("seshat-cycle-064-lesson", "Seshat growth cycle 64 lessons: digested sources and PLT scores, delivered by the bridge", (0.4, 0.5, 0.1)),
+            ("seshat-cycle-063-lesson", "Seshat growth cycle 63 lessons: digested sources and PLT scores, delivered by the bridge", (0.4, 0.5, 0.1)),
+            ("seshat-cycle-062-lesson", "Seshat growth cycle 62 lessons: digested sources and PLT scores, delivered by the bridge", (0.4, 0.5, 0.1)),
+            ("seshat-cycle-061-lesson", "Seshat growth cycle 61 lessons: digested sources and PLT scores, delivered by the bridge", (0.4, 0.5, 0.1)),
+            ("seshat-cycle-060-lesson", "Seshat growth cycle 60 lessons: digested sources and PLT scores, delivered by the bridge", (0.4, 0.5, 0.1)),
+            ("seshat-cycle-059-lesson", "Seshat growth cycle 59 lessons: digested sources and PLT scores, delivered by the bridge", (0.4, 0.5, 0.1)),
+            ("seshat-cycle-058-lesson", "Seshat growth cycle 58 lessons: digested sources and PLT scores, delivered by the bridge", (0.4, 0.5, 0.1)),
+            ("seshat-cycle-057-lesson", "Seshat growth cycle 57 lessons: digested sources and PLT scores, delivered by the bridge", (0.4, 0.5, 0.1)),
+            ("seshat-cycle-056-lesson", "Seshat growth cycle 56 lessons: digested sources and PLT scores, delivered by the bridge", (0.4, 0.5, 0.1)),
+            ("seshat-cycle-055-lesson", "Seshat growth cycle 55 lessons: digested sources and PLT scores, delivered by the bridge", (0.4, 0.5, 0.1)),
+            ("seshat-cycle-054-lesson", "Seshat growth cycle 54 lessons: digested sources and PLT scores, delivered by the bridge", (0.4, 0.5, 0.1)),
+            ("seshat-cycle-053-lesson", "Seshat growth cycle 53 lessons: digested sources and PLT scores, delivered by the bridge", (0.4, 0.5, 0.1)),
+            ("seshat-cycle-052-lesson", "Seshat growth cycle 52 lessons: digested sources and PLT scores, delivered by the bridge", (0.4, 0.5, 0.1)),
+            ("seshat-cycle-051-lesson", "Seshat growth cycle 51 lessons: digested sources and PLT scores, delivered by the bridge", (0.4, 0.5, 0.1)),
+            ("seshat-cycle-050-lesson", "Seshat growth cycle 50 lessons: digested sources and PLT scores, delivered by the bridge", (0.4, 0.5, 0.1)),
+            ("seshat-cycle-049-lesson", "Seshat growth cycle 49 lessons: digested sources and PLT scores, delivered by the bridge", (0.4, 0.5, 0.1)),
+            ("seshat-cycle-048-lesson", "Seshat growth cycle 48 lessons: digested sources and PLT scores, delivered by the bridge", (0.4, 0.5, 0.1)),
+            ("seshat-cycle-047-lesson", "Seshat growth cycle 47 lessons: digested sources and PLT scores, delivered by the bridge", (0.4, 0.5, 0.1)),
+            ("seshat-cycle-046-lesson", "Seshat growth cycle 46 lessons: digested sources and PLT scores, delivered by the bridge", (0.4, 0.5, 0.1)),
+            ("seshat-cycle-045-lesson", "Seshat growth cycle 45 lessons: digested sources and PLT scores, delivered by the bridge", (0.4, 0.5, 0.1)),
+            ("seshat-cycle-044-lesson", "Seshat growth cycle 44 lessons: digested sources and PLT scores, delivered by the bridge", (0.4, 0.5, 0.1)),
+            ("seshat-cycle-043-lesson", "Seshat growth cycle 43 lessons: digested sources and PLT scores, delivered by the bridge", (0.4, 0.5, 0.1)),
+            ("seshat-cycle-042-lesson", "Seshat growth cycle 42 lessons: digested sources and PLT scores, delivered by the bridge", (0.4, 0.5, 0.1)),
+            ("seshat-cycle-041-lesson", "Seshat growth cycle 41 lessons: digested sources and PLT scores, delivered by the bridge", (0.4, 0.5, 0.1)),
+            ("seshat-cycle-040-lesson", "Seshat growth cycle 40 lessons: digested sources and PLT scores, delivered by the bridge", (0.4, 0.5, 0.1)),
+            ("seshat-cycle-039-lesson", "Seshat growth cycle 39 lessons: digested sources and PLT scores, delivered by the bridge", (0.4, 0.5, 0.1)),
+            ("seshat-cycle-038-lesson", "Seshat growth cycle 38 lessons: digested sources and PLT scores, delivered by the bridge", (0.4, 0.5, 0.1)),
+            ("seshat-cycle-037-lesson", "Seshat growth cycle 37 lessons: digested sources and PLT scores, delivered by the bridge", (0.4, 0.5, 0.1)),
+            ("seshat-cycle-036-lesson", "Seshat growth cycle 36 lessons: digested sources and PLT scores, delivered by the bridge", (0.4, 0.5, 0.1)),
+            ("seshat-cycle-035-lesson", "Seshat growth cycle 35 lessons: digested sources and PLT scores, delivered by the bridge", (0.4, 0.5, 0.1)),
+            ("seshat-cycle-034-lesson", "Seshat growth cycle 34 lessons: digested sources and PLT scores, delivered by the bridge", (0.4, 0.5, 0.1)),
+            ("seshat-cycle-033-lesson", "Seshat growth cycle 33 lessons: digested sources and PLT scores, delivered by the bridge", (0.4, 0.5, 0.1)),
+            ("seshat-cycle-032-lesson", "Seshat growth cycle 32 lessons: digested sources and PLT scores, delivered by the bridge", (0.4, 0.5, 0.1)),
+            ("seshat-cycle-031-lesson", "Seshat growth cycle 31 lessons: digested sources and PLT scores, delivered by the bridge", (0.4, 0.5, 0.1)),
+            ("seshat-cycle-030-lesson", "Seshat growth cycle 30 lessons: digested sources and PLT scores, delivered by the bridge", (0.4, 0.5, 0.1)),
+            ("seshat-cycle-029-lesson", "Seshat growth cycle 29 lessons: digested sources and PLT scores, delivered by the bridge", (0.4, 0.5, 0.1)),
+            ("seshat-cycle-028-lesson", "Seshat growth cycle 28 lessons: digested sources and PLT scores, delivered by the bridge", (0.4, 0.5, 0.1)),
+            ("seshat-cycle-027-lesson", "Seshat growth cycle 27 lessons: digested sources and PLT scores, delivered by the bridge", (0.4, 0.5, 0.1)),
             ("self-evolution",       "Generate and install new skills autonomously using AI", (0.8, 0.1, 0.1)),
             ("memory-rag",           "Search across all memories using keyword matching to find relevant context", (0.3, 0.5, 0.2)),
             ("tool-engine",          "Execute Rust-native tools: web_search, download_video, call_api, post_bluesky, create_skill", (0.7, 0.2, 0.1)),
